@@ -12,7 +12,8 @@ import psycopg2
 import time
 import sys
 import os
-logging.basicConfig(filename='./logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+script_dir = os.path.dirname(os.path.abspath(__file__))  # get where the script is
+logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 #
 # TWITTER WIDGET V3
@@ -21,10 +22,8 @@ logging.basicConfig(filename='./logs/twitterBot.log',level=logging.INFO, format=
 
 def Main():
     logging.info("--------Starting Twitter Bot--------")
-    script_dir = os.path.dirname(os.path.abspath(__file__))  # get where the script is
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
-    print(script_dir+"/botconfig.ini")
     while True: # run this part forever
         # twitter auth
         auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))

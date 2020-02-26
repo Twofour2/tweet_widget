@@ -24,6 +24,7 @@ def Main():
     script_dir = os.path.dirname(__file__)  # get where the script is
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
+    print(script_dir+"/botconfig.ini")
     # twitter auth
     auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
     auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))

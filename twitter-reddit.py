@@ -21,7 +21,7 @@ logging.basicConfig(filename='./logs/twitterBot.log',level=logging.INFO, format=
 
 def Main():
     logging.info("--------Starting Twitter Bot--------")
-    script_dir = os.path.dirname(__file__)  # get where the script is
+    script_dir = os.path.dirname(__file__) or "."  # get where the script is
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
     print(script_dir+"/botconfig.ini")

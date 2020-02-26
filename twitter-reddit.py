@@ -14,7 +14,7 @@ import sys
 import os
 logging.basicConfig(filename='./logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
-
+#
 # TWITTER WIDGET V3
 # by /u/chaos_a
 # creates a easy to use twitter feed for subreddits
@@ -240,7 +240,7 @@ def sendWarning(subreddit, message):
     widgets = subreddit.widgets.sidebar  # get all widgets
     for item in widgets:
         if item.shortName.lower() == 'twitterfeed':  # find the feed widget
-            item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget bot:\n"+message)  # update the widget
+            item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget4 bot:\n"+message)  # update the widget
             logging.warning("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
             return  # we're done here
 

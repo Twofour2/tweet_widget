@@ -32,7 +32,7 @@ def Main():
     tApi = tweepy.API(auth)
     reddit = redditlogin(botconfig)
     global conn2
-    conn2 = dbConnect()
+    conn2 = dbConnect(botconfig)
     cur = conn2.cursor()
     cur.execute("SELECT * FROM subreddits")
     results = cur.fetchall()
@@ -245,11 +245,7 @@ def sendWarning(subreddit, message):
             logging.warning("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
             return  # we're done here
 
-def dbConnect():
-    script_dir = os.path.dirname(__file__)  # get where the script is
-    botconfig = configparser.ConfigParser()
-    botconfig.read(script_dir + "/botconfig.ini")
-
+def dbConnect(botconfig):
     # DB Connection
     dbName = botconfig.get("database", "dbName")
     dbPasswrd = botconfig.get("database", "dbPassword")

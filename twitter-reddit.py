@@ -25,44 +25,47 @@ def Main():
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
     print(script_dir+"/botconfig.ini")
-    # twitter auth
-    auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
-    auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))
-    global tApi
-    tApi = tweepy.API(auth)
-    reddit = redditlogin(botconfig)
-    global conn2
-    conn2 = dbConnect(botconfig)
-    cur = conn2.cursor()
-    cur.execute("SELECT * FROM subreddits")
-    results = cur.fetchall()
+    while True: # run this part forever
+        # twitter auth
+        auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
+        auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))
+        global tApi
+        tApi = tweepy.API(auth)
+        reddit = redditlogin(botconfig)
+        global conn2
+        conn2 = dbConnect(botconfig)
+        cur = conn2.cursor()
+        cur.execute("SELECT * FROM subreddits")
+        results = cur.fetchall()
 
-    for subredditdata in results: # go through every subreddit
-        logging.info("Checking tweets for subreddit %s" % subredditdata[0])
-        if subredditdata[1] == True: # bot is enabled for this subreddit via database
-            subreddit = reddit.subreddit(subredditdata[0]) # set the subreddit
-            try:
-                wiki = subreddit.wiki['twittercfg'].content_md # get the config wiki page
-                config = yaml.load(wiki, Loader=yaml.FullLoader) # load it
-                if config: # if the file actually works
-                    valid = checkCfg(subreddit, config) # validate that everything is correct
-                    if valid == True:
-                        if config['enabled'] == True: # bot is enabled via config
-                            try:
-                                getTweets(subreddit, config, subredditdata) # get new tweets
-                            except Exception as e:
-                                logging.warning(
-                                    "An error occurred while checking tweets on subreddit {}: {}".format(subredditdata[0], e))
+        for subredditdata in results: # go through every subreddit
+            logging.info("Checking tweets for subreddit %s" % subredditdata[0])
+            if subredditdata[1] == True: # bot is enabled for this subreddit via database
+                subreddit = reddit.subreddit(subredditdata[0]) # set the subreddit
+                try:
+                    wiki = subreddit.wiki['twittercfg'].content_md # get the config wiki page
+                    config = yaml.load(wiki, Loader=yaml.FullLoader) # load it
+                    if config: # if the file actually works
+                        valid = checkCfg(subreddit, config) # validate that everything is correct
+                        if valid == True:
+                            if config['enabled'] == True: # bot is enabled via config
+                                try:
+                                    getTweets(subreddit, config, subredditdata) # get new tweets
+                                except Exception as e:
+                                    logging.warning(
+                                        "An error occurred while checking tweets on subreddit {}: {}".format(subredditdata[0], e))
+                        else:
+                            logging.warning("Bad config file on subreddit %s" % subreddit.display_name)
                     else:
-                        logging.warning("Bad config file on subreddit %s" % subreddit.display_name)
-                else:
-                    logging.warning("BROKEN CONFIG FILE on subreddit %s" % subreddit.display_name)
+                        logging.warning("BROKEN CONFIG FILE on subreddit %s" % subreddit.display_name)
 
-            except prawcore.exceptions.NotFound:
-                subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
-                logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
-        else:
-            logging.info("Subreddit %s is disabled" % subredditdata[0])
+                except prawcore.exceptions.NotFound:
+                    subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
+                    logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
+            else:
+                logging.info("Subreddit %s is disabled" % subredditdata[0])
+        logging.info("Done with tweets, sleeping for 5 mins")
+        time.sleep(300)
 
 
 def getTweets(subreddit, config, subredditdata):

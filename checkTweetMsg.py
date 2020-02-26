@@ -6,7 +6,8 @@ import os
 import time
 import sys
 import logging
-logging.basicConfig(filename='./logs/twitterBotMsg.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+script_dir = os.path.dirname(__file__)  # get where the script is
+logging.basicConfig(filename=script_dir+'/logs/twitterBotMsg.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 
 # TWITTER WIDGET V3
@@ -14,7 +15,6 @@ logging.basicConfig(filename='./logs/twitterBotMsg.log',level=logging.INFO, form
 # Checks messages for the bot account
 
 def Main():
-    script_dir = os.path.dirname(__file__)  # get where the script is
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
     global conn2

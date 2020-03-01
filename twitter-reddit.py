@@ -162,7 +162,6 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config['screen_name']))
         elif mode == "list": # default to list url (owner username/lists/listname)
             markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config['owner'], config['list']))
-    print(datetime.utcnow())
     markup+= "\n\n~~Widget last updated {}".format(datetime.utcnow().strftime("%d %B %Y at %H:%I %p")+" (UTC)~~")
     if "show_ad" in config:
         if config["show_ad"] == True:

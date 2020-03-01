@@ -36,7 +36,6 @@ def Main():
         cur = conn2.cursor()
         cur.execute("SELECT * FROM subreddits")
         results = cur.fetchall()
-
         for subredditdata in results: # go through every subreddit
             logging.info("Checking tweets for subreddit %s" % subredditdata[0])
             if subredditdata[1] == True: # bot is enabled for this subreddit via database
@@ -90,17 +89,19 @@ def getTweets(subreddit, config, subredditdata):
 
 def checkLatest(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget
     global conn2
-    try:
-         t = Tweets[0] # get the latest tweet
-         if subredditdata[2] == t.id_str: # id's do match
-             return False # do not update the widget
-         else: # id's do not match, includes "None"
-             cur = conn2.cursor()
-             cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(t.id_str, subredditdata[0]))  # store the new latest tweet id
-             return True # do update the widget
-    except Exception as e:
-         logging.warning("An error occurred while checking latest status on subreddit {}: {}".format(subredditdata[0], e))
-         return False
+    return True
+    # ------------------------ TESTING ONLY
+    # try:
+    #      t = Tweets[0] # get the latest tweet
+    #      if subredditdata[2] == t.id_str: # id's do match
+    #          return False # do not update the widget
+    #      else: # id's do not match, includes "None"
+    #          cur = conn2.cursor()
+    #          cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(t.id_str, subredditdata[0]))  # store the new latest tweet id
+    #          return True # do update the widget
+    # except Exception as e:
+    #      logging.warning("An error occurred while checking latest status on subreddit {}: {}".format(subredditdata[0], e))
+    #      return False
 
 
 def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
@@ -161,6 +162,13 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config['screen_name']))
         elif mode == "list": # default to list url (owner username/lists/listname)
             markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config['owner'], config['list']))
+    print(datetime.utcnow())
+    markup+= "\n\n~~Widget last updated {}".format(datetime.utcnow().strftime("%d %B %Y at %H:%I %p")+" (UTC)~~")
+    if "show_ad" in config:
+        if config["show_ad"] == True:
+            markup+= "~~[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)~~"
+    else:
+        markup += "~~[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)~~"
     try:
         widgets = subreddit.widgets.sidebar  # get all widgets
         for item in widgets:
@@ -186,8 +194,16 @@ def convertTime(t_created_at):
         timeStr = t_created_at.strftime("%b %d, %Y")  # timestamp
     return timeStr.strip() # removes unwanted spaces
 
+def escapeChars(fulltext): # escapes existing characters in a tweet to stop reddit from formatting on them
+    redditChars = ["[", "]", "#", "*", ">", "^", "<", "~", "_", "`", "|", "-"]
+    for i in redditChars:
+        if i in fulltext: # if i is one of the characters used by reddit for formatting
+            fulltext = fulltext.replace(i, "\\"+i) # escape the character
+    else:
+        return fulltext
 
 def tweetFormatting(t, tweet_text): # does a bunch of formatting to various parts of the tweet
+    tweet_text = escapeChars(tweet_text) # run the escape characters function first
     json = t._json
     linkformat = "[{}]({})"
     try: # replace links with correctly formatted text and full urls rather than t.co

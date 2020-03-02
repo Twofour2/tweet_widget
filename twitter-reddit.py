@@ -46,7 +46,7 @@ def Main():
                     if config: # if the file actually works
                         valid = checkCfg(subreddit, config) # validate that everything is correct
                         if valid == True:
-                            if config['enabled'] == True: # bot is enabled via config
+                            if config.get('enabled', False): # bot is enabled via config
                                 try:
                                     getTweets(subreddit, config, subredditdata) # get new tweets
                                 except Exception as e:
@@ -69,16 +69,15 @@ def Main():
 def getTweets(subreddit, config, subredditdata):
     count = 10
     if 'mode' in config:
-        mode = config['mode'] # get current mode
+        mode = config.get('mode') # get current mode
     else:
         sendWarning(subreddit, "Config Error: Missing mode type (list/user)")
         return
-    if 'count' in config:
-        count = int(config['count']) # get tweet count
-        if count > 15: # enforce limit
-            count = 15
+    count = config.get('count', 7) # get number of tweets to display
+    if count > 15: # enforce limit
+        count = 15
     if mode == 'user': # get tweets from a single user
-        user = config['screen_name']
+        user = config.get('screen_name')
         Tweets = tApi.user_timeline(screen_name=user, count=count, tweet_mode='extended', include_entities=True)  # get first tweets id number
         if checkLatest(Tweets, subredditdata):
             MakeMarkupUser(Tweets, subreddit, config, mode) # use the user markup function
@@ -106,10 +105,7 @@ def checkLatest(Tweets, subredditdata): # checks if the latest tweet is in the d
 
 def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
     try:
-        if 'title' in config:
-            markup = ("#{}\n".format(config['title'])) # custom title
-        else: # default title
-            markup = ("#Tweets\n")
+        markup = ("#{}\n".format(config.get('title', "Tweets"))) # custom title
         for t in Tweets:
             json = t._json
             hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(json['user']['screen_name'], json['id']) # format a link to the tweet with username and tweet id
@@ -117,11 +113,12 @@ def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
             profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
             tweet_text = tweetFormatting(t, t.full_text)
             fulltext =  tweet_text.replace("\n", "\n>") # add the '>' character for every new line so it doesn't break the quote
+            if len(t.user.screen_name+t.user.name) > 36: screen_name = t.user.screen_name[0:33] # username is too long, shorten it
+            else: screen_name = t.user.screen_name # normal
             # MARKUP NOTE: 2 hashes are used here to signal %%profile1%%
-            markup += ("\n\n---\n##**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(t.user.name, t.user.screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat,fulltext))
-            if 'show_retweets' in config: # add re-tweet info
-                if config['show_retweets'] == True:
-                    markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))
+            markup += ("\n\n---\n##**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat,fulltext))
+            if config.get('show_retweets', False): # add re-tweet info
+                markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))
         else: # once markup is done
             insertMarkup(subreddit, markup, config, mode) # put it on the subreddit
     except Exception as e:
@@ -130,12 +127,12 @@ def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
 def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
     global timezone
     try:
-        if 'title' in config:
-            markup = ("#{}\n".format(config['title'])) # custom title
-        else: # default title
-            markup = ("#Tweets\n")
+        markup = ("#{}\n".format(config.get('title', 'Tweets'))) # custom title
         profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
         userhashes = {k.casefold(): v for k, v in config['users'].items()}  # make all dict items lowercase
+        for i in userhashes: # here to deal with possible user shenanigans
+            if userhashes[i] > 5: userhashes[i] = 5 # any number bigger than 5, set to 5
+            elif userhashes[i] <= 0: userhashes[i] = 1 # same thing
         # FORMATTING INFO: Userhashes (above) is used to calculate which header value is used (h2-h6)
         # the rest is css magic
         for t in Tweets:
@@ -144,30 +141,28 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
             timestampStr = convertTime(t.created_at)
             tweet_text = tweetFormatting(t, t.full_text)
             fulltext =  tweet_text.replace("\n", "\n>") # add the '>' character for every new line so it doesn't break the quote
-            markup += ("\n\n---\n{}**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(('#'*(userhashes[t.user.screen_name.lower()]+1)), t.user.name, t.user.screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat, fulltext))
-
-            if 'show_retweets' in config:
-                if config['show_retweets'] == True: # add re-tweet info
-                    markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))
+            if len(t.user.screen_name+t.user.name) > 36: screen_name = t.user.screen_name[0:33] # username is too long, shorten it
+            else: screen_name = t.user.screen_name # normal
+            markup += ("\n\n---\n{}**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(('#'*(userhashes[t.user.screen_name.lower()]+1)), t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat, fulltext))
+            if config.get('show_retweets', False): # add re-tweet info
+                markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))
         else: # once markup is done
             insertMarkup(subreddit, markup, config, mode) # put it on the subreddit
     except Exception as e:
         logging.warning("An error occurred while making the markup on subreddit {}: {}".format(subreddit.display_name, e))
 
 def insertMarkup(subreddit, markup, config, mode): # places the markup into the widget
-    if "view_more_url" in config: # view more button
-        markup += ("\n\n**[View more tweets]({})**".format(config['view_more_url']))
-    else: # defaults
+    if "view_more_url" in config: # custom view more button
+        markup += ("\n\n**[View more tweets]({})**".format(config.get('view_more_url')))
+    else: # default view more urls
         if mode == "user": # default to profile url
-            markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config['screen_name']))
+            markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config.get('screen_name')))
         elif mode == "list": # default to list url (owner username/lists/listname)
-            markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config['owner'], config['list']))
+            markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list')))
     markup+= "\n\n~~Widget last updated {}".format(datetime.utcnow().strftime("%d %B %Y at %H:%I %p")+" (UTC)~~")
-    if "show_ad" in config:
-        if config["show_ad"] == True:
-            markup+= "~~[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)~~"
-    else:
-        markup += "~~[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)~~"
+
+    if config.get('show_ad', True): # place ad into widget
+        markup+= "~~[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)~~"
     try:
         widgets = subreddit.widgets.sidebar  # get all widgets
         for item in widgets:
@@ -212,7 +207,7 @@ def tweetFormatting(t, tweet_text): # does a bunch of formatting to various part
                 tweet_text = tweet_text.replace(i['url'], linkformat.format(fixedUrl, i['expanded_url'])) # replace the t.co item with the fixedUrl (display only) and full url for the link
         if json['entities'].get('media') !=None:
             for i in t._json['entities']['media']:
-                if i['type'] == 'photo': # make the image link direct to the photo
+                if i.get('type') == 'photo': # make the image link direct to the photo
                     tweet_text = tweet_text.replace(i['url'], linkformat.format(i['display_url'], i['media_url_https'])) # replace the t.co item with the pics.twitter.com url (display only) and direct image link
                 else: # links directly to the tweet/media item
                     tweet_text = tweet_text.replace(i['url'], linkformat.format(i['display_url'], i['expanded_url'])) # same as above, but links to the tweet rather than directly to content

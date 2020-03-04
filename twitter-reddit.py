@@ -104,8 +104,14 @@ def genericItems(t, subreddit, config): # bunch of normally repeated code betwee
     hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(json['user']['screen_name'], json['id'])  # format a link to the tweet with username and tweet id
     timestampStr = convertTime(t.created_at)
     profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
-    tweet_text = tweetFormatting(t, t.full_text)
-    fulltext = tweet_text.replace("\n", "\n>")  # add the '>' character for every new line so it doesn't break the quote
+    if hasattr(t, "retweeted_status"):
+        tweet_text = tweetFormatting(t, t.retweeted_status.full_text)
+        tweet_text = "*🔁{} Retweeted*\n\n**[{} *@{}*]({})**\n\n{}".format(t.user.name, t.retweeted_status.user.name, t.retweeted_status.user.screen_name, profileUrl+t.retweeted_status.user.screen_name.lower(), tweet_text)
+        fulltext = tweet_text.replace("\n","\n>>")  # double quotes so that it forms two blockquote elements
+    else:
+        tweet_text = tweetFormatting(t, t.full_text)
+        fulltext = tweet_text.replace("\n","\n>")  # add the '>' character for every new line so it doesn't break the quote
+
     if len(t.user.screen_name + t.user.name) > 36:
         screen_name = t.user.screen_name[0:33]  # username is too long, shorten it
     else:
@@ -138,8 +144,6 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
         # the rest is css magic
         for t in Tweets:
             hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name = genericItems(t, subreddit, config)
-            if len(t.user.screen_name+t.user.name) > 36: screen_name = t.user.screen_name[0:33] # username is too long, shorten it
-            else: screen_name = t.user.screen_name # normal
             markup += ("\n\n---\n{}**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(('#'*(userhashes[t.user.screen_name.lower()]+1)), t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat, fulltext))
             if config.get('show_retweets', False): # add re-tweet info
                 markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))

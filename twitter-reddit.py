@@ -18,7 +18,7 @@ logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INF
 #
 # TWITTER WIDGET V3
 # by /u/chaos_a
-# creates a easy to use twitter feed for subreddits
+# a twitter feed for subreddits
 
 def Main():
     logging.info("--------Starting Twitter Bot--------")
@@ -38,14 +38,14 @@ def Main():
         results = cur.fetchall()
         for subredditdata in results: # go through every subreddit
             logging.info("Checking tweets for subreddit %s" % subredditdata[0])
-            if subredditdata[1] == True: # bot is enabled for this subreddit via database
+            if subredditdata[1]: # bot is enabled for this subreddit via database
                 subreddit = reddit.subreddit(subredditdata[0]) # set the subreddit
                 try:
                     wiki = subreddit.wiki['twittercfg'].content_md # get the config wiki page
                     config = yaml.load(wiki, Loader=yaml.FullLoader) # load it
                     if config: # if the file actually works
                         valid = checkCfg(subreddit, config) # validate that everything is correct
-                        if valid == True:
+                        if valid:
                             if config.get('enabled', False): # bot is enabled via config
                                 try:
                                     getTweets(subreddit, config, subredditdata) # get new tweets
@@ -67,7 +67,6 @@ def Main():
 
 
 def getTweets(subreddit, config, subredditdata):
-    count = 10
     if 'mode' in config:
         mode = config.get('mode') # get current mode
     else:
@@ -88,33 +87,36 @@ def getTweets(subreddit, config, subredditdata):
 
 def checkLatest(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget
     global conn2
-    return True
-    # ------------------------ TESTING ONLY
-    # try:
-    #      t = Tweets[0] # get the latest tweet
-    #      if subredditdata[2] == t.id_str: # id's do match
-    #          return False # do not update the widget
-    #      else: # id's do not match, includes "None"
-    #          cur = conn2.cursor()
-    #          cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(t.id_str, subredditdata[0]))  # store the new latest tweet id
-    #          return True # do update the widget
-    # except Exception as e:
-    #      logging.warning("An error occurred while checking latest status on subreddit {}: {}".format(subredditdata[0], e))
-    #      return False
+    try:
+         t = Tweets[0] # get the latest tweet
+         if subredditdata[2] == t.id_str: # id's do match
+             return False # do not update the widget
+         else: # id's do not match, includes "None"
+             cur = conn2.cursor()
+             cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(t.id_str, subredditdata[0]))  # store the new latest tweet id
+             return True # do update the widget
+    except Exception as e:
+         logging.warning("An error occurred while checking latest status on subreddit {}: {}".format(subredditdata[0], e))
+         return False
 
+def genericItems(t, subreddit, config): # bunch of normally repeated code between MakeMarkupUser and MakeMarkupList
+    json = t._json
+    hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(json['user']['screen_name'], json['id'])  # format a link to the tweet with username and tweet id
+    timestampStr = convertTime(t.created_at)
+    profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
+    tweet_text = tweetFormatting(t, t.full_text)
+    fulltext = tweet_text.replace("\n", "\n>")  # add the '>' character for every new line so it doesn't break the quote
+    if len(t.user.screen_name + t.user.name) > 36:
+        screen_name = t.user.screen_name[0:33]  # username is too long, shorten it
+    else:
+        screen_name = t.user.screen_name  # normal
+    return hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name
 
 def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
     try:
         markup = ("#{}\n".format(config.get('title', "Tweets"))) # custom title
         for t in Tweets:
-            json = t._json
-            hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(json['user']['screen_name'], json['id']) # format a link to the tweet with username and tweet id
-            timestampStr = convertTime(t.created_at)
-            profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
-            tweet_text = tweetFormatting(t, t.full_text)
-            fulltext =  tweet_text.replace("\n", "\n>") # add the '>' character for every new line so it doesn't break the quote
-            if len(t.user.screen_name+t.user.name) > 36: screen_name = t.user.screen_name[0:33] # username is too long, shorten it
-            else: screen_name = t.user.screen_name # normal
+            hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name = genericItems(t, subreddit, config)
             # MARKUP NOTE: 2 hashes are used here to signal %%profile1%%
             markup += ("\n\n---\n##**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat,fulltext))
             if config.get('show_retweets', False): # add re-tweet info
@@ -128,19 +130,14 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
     global timezone
     try:
         markup = ("#{}\n".format(config.get('title', 'Tweets'))) # custom title
-        profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
         userhashes = {k.casefold(): v for k, v in config['users'].items()}  # make all dict items lowercase
         for i in userhashes: # here to deal with possible user shenanigans
             if userhashes[i] > 5: userhashes[i] = 5 # any number bigger than 5, set to 5
-            elif userhashes[i] <= 0: userhashes[i] = 1 # same thing
+            elif userhashes[i] <= 0: userhashes[i] = 1 # same thing, but to 1
         # FORMATTING INFO: Userhashes (above) is used to calculate which header value is used (h2-h6)
         # the rest is css magic
         for t in Tweets:
-            json = t._json
-            hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(json['user']['screen_name'], json['id']) # format a link to the tweet with username and tweet id
-            timestampStr = convertTime(t.created_at)
-            tweet_text = tweetFormatting(t, t.full_text)
-            fulltext =  tweet_text.replace("\n", "\n>") # add the '>' character for every new line so it doesn't break the quote
+            hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name = genericItems(t, subreddit, config)
             if len(t.user.screen_name+t.user.name) > 36: screen_name = t.user.screen_name[0:33] # username is too long, shorten it
             else: screen_name = t.user.screen_name # normal
             markup += ("\n\n---\n{}**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(('#'*(userhashes[t.user.screen_name.lower()]+1)), t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat, fulltext))
@@ -174,8 +171,6 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
         logging.warning("An error occurred while dealing with widgets on subreddit {}: {}".format(subreddit.display_name, e))
 
 def convertTime(t_created_at):
-    d1 = t_created_at
-    d2 = datetime.utcnow()
     time_diff = datetime.utcnow() - t_created_at # current time minus tweet time, both are UTC
     seconds = time_diff.total_seconds() # convert to seconds
     if seconds < 60:
@@ -216,10 +211,16 @@ def tweetFormatting(t, tweet_text): # does a bunch of formatting to various part
 
     # find @ symbols and link to the tagged users profile
     twitterprofileUrl = "*[@{}](https://www.twitter.com/{})*"
-    res = re.search('@(\w+)', tweet_text)
+    res = re.findall('@(\w+)', tweet_text)
     if res:
-        for i in res.groups():
+        for i in set(res): # using set here otherwise replace will act on duplicates multiple times
              tweet_text = tweet_text.replace('@'+i, twitterprofileUrl.format(i, i)) # replaces with link
+    # find # symbols and link them
+    hashtagUrl = "*[\#{}](https://www.twitter.com/search?q=%23{})*"
+    res = re.findall("#(\w+)", tweet_text)
+    if res:
+        for i in set(res): # using set here otherwise replace will act on duplicates multiple times
+            tweet_text = tweet_text.replace('\#' + i, hashtagUrl.format(i, i))  # replaces with link
     return tweet_text # we are done here, return the edited tweet text
 
 

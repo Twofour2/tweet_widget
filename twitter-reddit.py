@@ -100,23 +100,33 @@ def checkLatest(Tweets, subredditdata): # checks if the latest tweet is in the d
          return False
 
 def genericItems(t, subreddit, config): # bunch of normally repeated code between MakeMarkupUser and MakeMarkupList
-    json = t._json
-    hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(json['user']['screen_name'], json['id'])  # format a link to the tweet with username and tweet id
-    timestampStr = convertTime(t.created_at)
-    profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
-    if hasattr(t, "retweeted_status"):
-        tweet_text = tweetFormatting(t, t.retweeted_status.full_text)
-        tweet_text = "*🔁{} Retweeted*\n\n**[{} *@{}*]({})**\n\n{}".format(t.user.name, t.retweeted_status.user.name, t.retweeted_status.user.screen_name, profileUrl+t.retweeted_status.user.screen_name.lower(), tweet_text)
-        fulltext = tweet_text.replace("\n","\n>>")  # double quotes so that it forms two blockquote elements
-    else:
-        tweet_text = tweetFormatting(t, t.full_text)
-        fulltext = tweet_text.replace("\n","\n>")  # add the '>' character for every new line so it doesn't break the quote
+    try:
+        hotlinkFormat = "https://www.twitter.com/{0}/status/{1}".format(t.user.screen_name, t.id)  # format a link to the tweet with username and tweet id
+        timestampStr = convertTime(t.created_at) # tweet timestamp
+        profileUrl = "https://www.twitter.com/"  # this + username gives a link to the users profile
+        if hasattr(t, "retweeted_status"): # check if retweet, if so do retweet stuff
+            try:
+                hotlinkFormatRT = "https://www.twitter.com/{0}/status/{1}".format(t.retweeted_status.user.screen_name, t.retweeted_status.id)
+                timestampStrRT = convertTime(t.retweeted_status.created_at) # get retweet timestamp
+                tweet_text = tweetFormatting(t.retweeted_status, t.retweeted_status.full_text) # do tweet formatting on retweet
+                tweet_text = "*🔁{} Retweeted*\n\n**[{} *@{}*]({}) *-* [*{}*]({})**  \n{}".format(t.user.name, t.retweeted_status.user.name, t.retweeted_status.user.screen_name, profileUrl+t.retweeted_status.user.screen_name.lower(), timestampStrRT, hotlinkFormatRT, tweet_text)
+                fulltext = tweet_text.replace("\n","\n>>")  # double quotes so that it forms two blockquote elements
+            except Exception as e:
+                traceback.print_exc()
+                logging.warning("An error occurred while formatting a retweet: %s" % e)
+                return
+        else: # isn't a retweet, just normal stuff
+            tweet_text = tweetFormatting(t, t.full_text) # do tweet formatting
+            fulltext = tweet_text.replace("\n","\n>")  # add the '>' character for every new line so it doesn't break the quote
 
-    if len(t.user.screen_name + t.user.name) > 36:
-        screen_name = t.user.screen_name[0:33]  # username is too long, shorten it
-    else:
-        screen_name = t.user.screen_name  # normal
-    return hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name
+        if len(t.user.screen_name + t.user.name) > 36:
+            screen_name = t.user.screen_name[0:33]  # username is too long, shorten it
+        else:
+            screen_name = t.user.screen_name  # normal
+        return hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name
+
+    except Exception as e:
+        logging.warning("An error occurred while formatting a tweet/retweet: %s" % e)
 
 def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
     try:
@@ -200,11 +210,11 @@ def tweetFormatting(t, tweet_text): # does a bunch of formatting to various part
     json = t._json
     linkformat = "[{}]({})"
     try: # replace links with correctly formatted text and full urls rather than t.co
-        if json['entities'].get('urls') !=None:
+        if json['entities'].get('urls') is not None:
             for i in t._json['entities']['urls']:
                 fixedUrl = re.sub(r"https?://", '', i['expanded_url']).strip("/") # remove https://, http:// and trailing / so the link looks good
                 tweet_text = tweet_text.replace(i['url'], linkformat.format(fixedUrl, i['expanded_url'])) # replace the t.co item with the fixedUrl (display only) and full url for the link
-        if json['entities'].get('media') !=None:
+        if json['entities'].get('media') is not None:
             for i in t._json['entities']['media']:
                 if i.get('type') == 'photo': # make the image link direct to the photo
                     tweet_text = tweet_text.replace(i['url'], linkformat.format(i['display_url'], i['media_url_https'])) # replace the t.co item with the pics.twitter.com url (display only) and direct image link

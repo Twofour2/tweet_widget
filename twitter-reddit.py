@@ -95,10 +95,11 @@ def getTweets(subreddit, config, subredditdata):
 def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget
     # function also returns old tweets that are stored in /Data/"Subreddit".data files.
     # this is done this way to reduce the number of API calls, since we can easily store tweets and still update the timestamps
+    global script_dir
     global conn
     try:
         if subredditdata[2] == Tweets[0].id_str: # id's do match
-            with open("./Data/{}.data".format(subredditdata[0]), mode="rb") as f: # read saved data
+            with open("{}/Data/{}.data".format(script_dir,subredditdata[0]), mode="rb") as f: # read saved data
                 data = pickle.load(f)
                 logging.info("Stored tweet is latest, using data file instead of getting more tweets for subreddit %s" % subredditdata[0])
                 return data # return stored tweets (becomes Tweets)
@@ -112,8 +113,9 @@ def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the d
         return False # gather new tweets anyways
 
 def storeNewTweets(Tweets, subredditdata): # stores the new tweets so they can be used again
+    global script_dir
     try:
-        with open("./Data/{}.data".format(subredditdata[0]), mode='wb') as f:
+        with open("{}/Data/{}.data".format(script_dir,subredditdata[0]), mode='wb') as f:
             pickle.dump(Tweets, f)
         logging.info("Successfully stored new tweets to .data file")
     except Exception as e:

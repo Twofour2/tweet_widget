@@ -6,7 +6,9 @@ import traceback
 import tweepy
 import re
 import yaml
+import pickle
 import pprint
+import json
 from datetime import datetime, timezone
 import psycopg2
 import time
@@ -65,7 +67,6 @@ def Main():
         logging.info("Done with tweets, sleeping for 5 mins")
         time.sleep(300)
 
-
 def getTweets(subreddit, config, subredditdata):
     if 'mode' in config:
         mode = config.get('mode') # get current mode
@@ -77,27 +78,47 @@ def getTweets(subreddit, config, subredditdata):
         count = 15
     if mode == 'user': # get tweets from a single user
         user = config.get('screen_name')
-        Tweets = tApi.user_timeline(screen_name=user, count=count, tweet_mode='extended', include_entities=True)  # get first tweets id number
-        if checkLatest(Tweets, subredditdata):
-            MakeMarkupUser(Tweets, subreddit, config, mode) # use the user markup function
+        LatestTweet = tApi.user_timeline(screen_name=user, count=1, tweet_mode='extended', include_entities=True)  # get first tweets id number
+        Tweets = checkTweets(LatestTweet, subredditdata) # check LatestTweet is latest, if it is it just returns stored tweets, otherwise we need to get new tweets here
+        if not Tweets: # returned as false, need to get new tweets
+            Tweets = tApi.user_timeline(screen_name=user, count=count, tweet_mode='extended',include_entities=True)  # gathers new tweets
+            storeNewTweets(Tweets, subredditdata) # store's the new tweets away in the .data file
+        MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
     elif mode == 'list': # get tweets by many users via a list
-        Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=count, tweet_mode='extended', include_entities=True)
-        if checkLatest(Tweets, subredditdata):
-            MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
+        LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
+        Tweets = checkTweets(LatestTweet, subredditdata)
+        if not Tweets: # returned as false, get new tweets
+            Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=count, tweet_mode='extended',include_entities=True) # get new tweets
+            storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
+        MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
 
-def checkLatest(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget
-    global conn2
+def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget
+    # function also returns old tweets that are stored in /Data/"Subreddit".data files.
+    # this is done this way to reduce the number of API calls, since we can easily store tweets and still update the timestamps
+    global conn
     try:
-         t = Tweets[0] # get the latest tweet
-         if subredditdata[2] == t.id_str: # id's do match
-             return False # do not update the widget
-         else: # id's do not match, includes "None"
-             cur = conn2.cursor()
-             cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(t.id_str, subredditdata[0]))  # store the new latest tweet id
-             return True # do update the widget
+        if subredditdata[2] == Tweets[0].id_str: # id's do match
+            with open("./Data/{}.data".format(subredditdata[0]), mode="rb") as f: # read saved data
+                data = pickle.load(f)
+                logging.info("Stored tweet is latest, using data file instead of getting more tweets for subreddit %s" % subredditdata[0])
+                return data # return stored tweets (becomes Tweets)
+        else: # latest tweet does not match stored tweet, get new tweets
+            cur = conn2.cursor()
+            cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(Tweets[0].id_str,subredditdata[0])) # update latest id number
+            logging.info("Getting new tweets for subreddit %s" % subredditdata[0])
+            return False # gather new tweets
     except Exception as e:
-         logging.warning("An error occurred while checking latest status on subreddit {}: {}".format(subredditdata[0], e))
-         return False
+        logging.warning("An error occurred while checking/gathering stored tweets: %s" %e)
+        return False # gather new tweets anyways
+
+def storeNewTweets(Tweets, subredditdata): # stores the new tweets so they can be used again
+    try:
+        with open("./Data/{}.data".format(subredditdata[0]), mode='wb') as f:
+            pickle.dump(Tweets, f)
+        logging.info("Successfully stored new tweets to .data file")
+    except Exception as e:
+        logging.warning("An error occurred while storing new tweets: %s" % e)
+
 
 def genericItems(t, subreddit, config): # bunch of normally repeated code between MakeMarkupUser and MakeMarkupList
     try:
@@ -112,7 +133,6 @@ def genericItems(t, subreddit, config): # bunch of normally repeated code betwee
                 tweet_text = "*🔁{} Retweeted*\n\n**[{} *@{}*]({}) *-* [*{}*]({})**  \n{}".format(t.user.name, t.retweeted_status.user.name, t.retweeted_status.user.screen_name, profileUrl+t.retweeted_status.user.screen_name.lower(), timestampStrRT, hotlinkFormatRT, tweet_text)
                 fulltext = tweet_text.replace("\n","\n>>")  # double quotes so that it forms two blockquote elements
             except Exception as e:
-                traceback.print_exc()
                 logging.warning("An error occurred while formatting a retweet: %s" % e)
                 return
         else: # isn't a retweet, just normal stuff

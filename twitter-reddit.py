@@ -224,7 +224,7 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             markup+= "[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
         markup += "~~" # close code area
     except Exception as e:
-        traceback.print_exc()
+        logging.warning("An error occurred while doing end of widget text: %s"%e)
     try:
         widgets = subreddit.widgets.sidebar  # get all widgets
         for item in widgets:

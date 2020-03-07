@@ -62,6 +62,9 @@ def Main():
                 except prawcore.exceptions.NotFound:
                     subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
                     logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
+                except Exception as e:
+                    logging.warning("Got removed, but did not update database!!! Exception: %s"%e)
+                    continue
             else:
                 logging.info("Subreddit %s is disabled" % subredditdata[0])
         logging.info("Done with tweets, sleeping for 5 mins")
@@ -200,11 +203,15 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
         # the rest is css magic
         for t in Tweets:
             hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name = genericItems(t, subreddit, config)
-            markup += ("\n\n---\n{}**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(('#'*(userhashes[t.user.screen_name.lower()]+1)), t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat, fulltext))
+            markup += ("\n\n---\n{}**[{} *@{}*]({})**   \n[*{}*]({}) \n>{}".format(('#'*(userhashes[t.user.screen_name.lower()]+1)), t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat, fulltext))
             if config.get('show_retweets', False): # add re-tweet info
                 markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))
         else: # once markup is done
             insertMarkup(subreddit, markup, config, mode) # put it on the subreddit
+    except KeyError as e:
+        print("key error")
+        sendWarning(subreddit, "KeyError, check your profiles in the config! User: %s"%e)
+        logging.warning("Invalid key data: %s" % e)
     except Exception as e:
         logging.warning("An error occurred while making the markup on subreddit {}: {}".format(subreddit.display_name, e))
 
@@ -218,8 +225,8 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             elif mode == "list": # default to list url (owner username/lists/listname)
                 markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list')))
         markup+= "\n\n~~" # open code area
-        markup+= "Widget last updated {}".format(datetime.utcnow().strftime("%-d %b %Y at %-I:%M %p")+" (UTC)  \n")
-        markup+= "Last gathered tweets: {}".format(getLastGatherTimestamp(subreddit.display_name.lower()).strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
+        markup+= "Widget last updated: {}".format(datetime.utcnow().strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
+        markup+= "Last retrieved tweets: {}".format(getLastGatherTimestamp(subreddit.display_name.lower()).strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
         if config.get('show_ad', True): # place ad into widget
             markup+= "[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
         markup += "~~" # close code area
@@ -316,10 +323,13 @@ def checkCfg(subreddit, config): # False = Failed checks, True = Pass, continue 
     return True # if the code get's here nothing went wrong
 
 def sendWarning(subreddit, message):
+    endMsg = "\n\n*"
+    endMsg+="[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
+    endMsg+= "*"
     widgets = subreddit.widgets.sidebar  # get all widgets
     for item in widgets:
         if item.shortName.lower() == 'twitterfeed':  # find the feed widget
-            item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget4 bot:\n"+message)  # update the widget
+            item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget bot:\n"+message+"\n\n"+endMsg)  # update the widget
             logging.warning("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
             return  # we're done here
 

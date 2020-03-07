@@ -36,14 +36,12 @@ def checkMail(r):
             acceptModInvite(msg)
             createConfig(msg.subreddit) # create the config file
             msg.mark_read()
-
             continue
-
         if msg.subject.strip().lower().startswith("moderator message from"):
             msg.mark_read()
             continue
-
-        if "You have been removed as a moderator from " in msg.body:
+        if "You have been removed as a moderator from" in msg.body:
+            logging.info("Removing self from subreddit %s"%msg.subreddit.display_name)
             removeModStatus(msg)
             continue
 
@@ -53,6 +51,7 @@ def checkMail(r):
 
 def acceptModInvite(message):
     try:
+        logging.info("Accepting mod invite for subreddit %s" % message.subreddit.display_name)
         global conn2
         cur = conn2.cursor()
         message.mark_read()
@@ -68,14 +67,16 @@ def acceptModInvite(message):
                 "UPDATE subreddits SET enabled=True WHERE subname=%s",
                 (str(message.subreddit).lower(),),
             )
+            logging.info("Re-enabling subreddit %s" % message.subreddit.display_name)
         else:
             cur.execute(
                 "INSERT INTO subreddits (subname) VALUES(%s)",
                 (str(message.subreddit).lower(),),
             )
+            logging.info("Successfully added subreddit %s to database" % message.subreddit.display_name)
         logging.warning("Accepted invite for /r/%s" % message.subreddit.display_name)
     except Exception as e:
-        logging.warning("Error: %s"+e)
+        logging.warning("Error: %s" % e)
 
 def removeModStatus(message):
     try:
@@ -86,6 +87,7 @@ def removeModStatus(message):
             "UPDATE subreddits SET enabled=False WHERE subname=%s",
             (str(message.subreddit),),
         )
+        logging.info("Set enabled to false for subreddit %s"%message.subreddit.display_name)
     except Exception as e:
         logging.warning("Error: %s"%e)
 
@@ -93,7 +95,7 @@ def createConfig(subreddit): # create the config file
     try:
         subreddit.wiki.create(name='twittercfg', content='#Twitter feed bot config\n---  \nenabled: True  \nmode: user')
     except Exception as e: # already exists
-        logging.warning("Error: Config already exists")
+        logging.warning("Error: Config already exists, recieved error %s"%e)
         return
 
 def dbConnect(botconfig):
@@ -124,7 +126,6 @@ def redditlogin(botconfig):
                         password=botconfig.get("reddit", "password"),
                         user_agent=botconfig.get("reddit", "useragent"),
                         username=botconfig.get("reddit", "username"))
-        me = r.user.me()
         return r
     except Exception as e:
         logging.warning("Could not connect to reddit: %s" % e)

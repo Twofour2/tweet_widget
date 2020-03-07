@@ -68,6 +68,8 @@ def Main():
         time.sleep(300)
 
 def getTweets(subreddit, config, subredditdata):
+    global isNew
+    isNew = False # informs late code that tweets are either new or old
     if 'mode' in config:
         mode = config.get('mode') # get current mode
     else:
@@ -81,6 +83,7 @@ def getTweets(subreddit, config, subredditdata):
         LatestTweet = tApi.user_timeline(screen_name=user, count=1, tweet_mode='extended', include_entities=True)  # get first tweets id number
         Tweets = checkTweets(LatestTweet, subredditdata) # check LatestTweet is latest, if it is it just returns stored tweets, otherwise we need to get new tweets here
         if not Tweets: # returned as false, need to get new tweets
+            isNew = True
             Tweets = tApi.user_timeline(screen_name=user, count=count, tweet_mode='extended',include_entities=True)  # gathers new tweets
             storeNewTweets(Tweets, subredditdata) # store's the new tweets away in the .data file
         MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
@@ -88,6 +91,7 @@ def getTweets(subreddit, config, subredditdata):
         LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
         Tweets = checkTweets(LatestTweet, subredditdata)
         if not Tweets: # returned as false, get new tweets
+            isNew = True
             Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=count, tweet_mode='extended',include_entities=True) # get new tweets
             storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
         MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
@@ -109,10 +113,14 @@ def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the d
             logging.info("Getting new tweets for subreddit %s" % subredditdata[0])
             return False # gather new tweets
     except Exception as e:
-        logging.warning("An error occurred while checking/gathering stored tweets: %s" %e)
+        if e == IndexError:
+            logging.warning("Index error, has user posted a tweet? subreddit: %s, error %s" % (subredditdata[0], e))
+        else:
+            logging.warning("An error occurred while checking/gathering stored tweets: %s" %e)
         return False # gather new tweets anyways
 
 def storeNewTweets(Tweets, subredditdata): # stores the new tweets so they can be used again
+    logging.info("Storing tweets")
     global script_dir
     try:
         with open("{}/Data/{}.data".format(script_dir,subredditdata[0]), mode='wb') as f:
@@ -120,7 +128,23 @@ def storeNewTweets(Tweets, subredditdata): # stores the new tweets so they can b
         logging.info("Successfully stored new tweets to .data file")
     except Exception as e:
         logging.warning("An error occurred while storing new tweets: %s" % e)
+    # store timestamp
+    global conn
+    try:
+        cur = conn2.cursor()
+        cur.execute("UPDATE subreddits SET last_gather={} WHERE subname='{}'".format(datetime.utcnow().timestamp(), subredditdata[0]))
+    except Exception as e:
+        logging.warning("An error occurred while storing last_gather: %s" % e)
 
+def getLastGatherTimestamp(subname): # returns last_gather datetime object
+    try:
+        cur = conn2.cursor()
+        cur.execute("SELECT last_gather FROM subreddits WHERE subname='{}'".format(subname))
+        res = cur.fetchone()
+        return datetime.fromtimestamp(res[0])
+    except Exception as e:
+        logging.warning("An error occurred while getting last_gather: %s" % e)
+        return
 
 def genericItems(t, subreddit, config): # bunch of normally repeated code between MakeMarkupUser and MakeMarkupList
     try:
@@ -156,7 +180,7 @@ def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
         for t in Tweets:
             hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name = genericItems(t, subreddit, config)
             # MARKUP NOTE: 2 hashes are used here to signal %%profile1%%
-            markup += ("\n\n---\n##**[{} *@{}*]({})**   \n[{}]({}) \n>{}".format(t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat,fulltext))
+            markup += ("\n\n---\n##**[{} *@{}*]({})**   \n[*{}*]({}) \n>{}".format(t.user.name, screen_name, profileUrl+t.user.screen_name.lower(), timestampStr, hotlinkFormat,fulltext))
             if config.get('show_retweets', False): # add re-tweet info
                 markup += ("\n\n>**{}** Retweets  **{}** Likes".format(t.retweet_count, t.favorite_count))
         else: # once markup is done
@@ -185,17 +209,22 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
         logging.warning("An error occurred while making the markup on subreddit {}: {}".format(subreddit.display_name, e))
 
 def insertMarkup(subreddit, markup, config, mode): # places the markup into the widget
-    if "view_more_url" in config: # custom view more button
-        markup += ("\n\n**[View more tweets]({})**".format(config.get('view_more_url')))
-    else: # default view more urls
-        if mode == "user": # default to profile url
-            markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config.get('screen_name')))
-        elif mode == "list": # default to list url (owner username/lists/listname)
-            markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list')))
-    markup+= "\n\n~~Widget last updated {}".format(datetime.utcnow().strftime("%d %B %Y at %H:%I %p")+" (UTC)~~")
-
-    if config.get('show_ad', True): # place ad into widget
-        markup+= "~~[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)~~"
+    try:
+        if "view_more_url" in config: # custom view more button
+            markup += ("\n\n**[View more tweets]({})**".format(config.get('view_more_url')))
+        else: # default view more urls
+            if mode == "user": # default to profile url
+                markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config.get('screen_name')))
+            elif mode == "list": # default to list url (owner username/lists/listname)
+                markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list')))
+        markup+= "\n\n~~" # open code area
+        markup+= "Widget last updated {}".format(datetime.utcnow().strftime("%-d %b %Y at %-I:%M %p")+" (UTC)  \n")
+        markup+= "Last gathered tweets: {}".format(getLastGatherTimestamp(subreddit.display_name.lower()).strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
+        if config.get('show_ad', True): # place ad into widget
+            markup+= "[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
+        markup += "~~" # close code area
+    except Exception as e:
+        traceback.print_exc()
     try:
         widgets = subreddit.widgets.sidebar  # get all widgets
         for item in widgets:
@@ -216,7 +245,7 @@ def convertTime(t_created_at):
     elif 3600 < seconds < 86400: # older than 1 hour, younger than 1 day, show hours
         timeStr = str(int(seconds // 3600)) + "h"
     else: # older than 1 day
-        timeStr = t_created_at.strftime("%b %d, %Y")  # timestamp
+        timeStr = t_created_at.strftime("%b %-d, %Y")  # timestamp
     return timeStr.strip() # removes unwanted spaces
 
 def escapeChars(fulltext): # escapes existing characters in a tweet to stop reddit from formatting on them

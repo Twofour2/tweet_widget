@@ -3,5 +3,6 @@
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/checkTweetMsg.py" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/twitter-reddit.py" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/twitter-redditOLDREDDITTEST.py" dialect="PostgreSQL" />
   </component>
 </project>

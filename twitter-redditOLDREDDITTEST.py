@@ -18,7 +18,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))  # get where the script 
 logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 #
-# TWITTER WIDGET V3
+# TWITTER WIDGET V3 OLD REDDIT TESTING
 # by /u/chaos_a
 # a twitter feed for subreddits
 
@@ -33,11 +33,12 @@ def Main():
         global tApi
         tApi = tweepy.API(auth)
         reddit = redditlogin(botconfig)
-        global conn2
-        conn2 = dbConnect(botconfig)
-        cur = conn2.cursor()
-        cur.execute("SELECT * FROM subreddits")
-        results = cur.fetchall()
+        # global conn2
+        # conn2 = dbConnect(botconfig)
+        # cur = conn2.cursor()
+        # cur.execute("SELECT * FROM subreddits")
+        # results = cur.fetchall()
+        results = ['tweet_widget', True]
         for subredditdata in results: # go through every subreddit
             logging.info("Checking tweets for subreddit %s" % subredditdata[0])
             if subredditdata[1]: # bot is enabled for this subreddit via database
@@ -63,8 +64,8 @@ def Main():
                     subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
                     logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
                 except Exception as e:
-                    logging.warning("Possibly got removed, but did not update database. Or this is a config error. Exception: %s" % e)
-                    sendWarning(subreddit, "An exception occurred while loading the config:\n %s" % e)
+                    logging.warning("Possibly got removed, but did not update database. Or this is a config error. Exception: %s"%e)
+                    sendWarning(subreddit, "An exception occurred while loading the config:\n %s"%e)
                     continue
             else:
                 logging.info("Subreddit %s is disabled" % subredditdata[0])
@@ -233,7 +234,17 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
         markup += "~~" # close code area
     except Exception as e:
         logging.warning("An error occurred while doing end of widget text: %s"%e)
-    try:
+    try: # insert old reddit
+        if "oldReddit" in config:
+            if config.get("oldReddit", False) == True:
+                print("Running old reddit mode")
+
+
+    except Exception as e:
+        print("ERROR")
+        traceback.print_exc()
+
+    try: # insert new reddit
         widgets = subreddit.widgets.sidebar  # get all widgets
         for item in widgets:
             if item.shortName.lower() == 'twitterfeed': # find the feed widget

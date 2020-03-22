@@ -64,7 +64,7 @@ def Main():
                     logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
                 except Exception as e:
                     logging.warning("Possibly got removed, but did not update database. Or this is a config error. Exception: %s" % e)
-                    sendWarning(subreddit, "An exception occurred while loading the config:\n %s" % e)
+                    sendWarning(subreddit, "An exception occurred while loading the config:\n\n %s" % e)
                     continue
             else:
                 logging.info("Subreddit %s is disabled" % subredditdata[0])
@@ -327,6 +327,7 @@ def sendWarning(subreddit, message):
     endMsg = "\n\n*"
     endMsg+="[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
     endMsg+= "*"
+    message = message.replace("\n", "\n  ")
     widgets = subreddit.widgets.sidebar  # get all widgets
     for item in widgets:
         if item.shortName.lower() == 'twitterfeed':  # find the feed widget

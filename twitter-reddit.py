@@ -314,6 +314,12 @@ def checkCfg(subreddit, config): # False = Failed checks, True = Pass, continue 
         if 'users' not in config:
             sendWarning(subreddit, "Config Missing: Username's (users) are required for list mode")
             return False
+        try:
+            config['users'].items()
+        except AttributeError: # added due to a config file lacking indents
+            logging.warning("Attribute error thrown. Bad config file.")
+            sendWarning(subreddit, "Config Error: Missing or incorrect formatting on userlist. Check indentation/config formatting.")
+            return False
     elif config['mode'] == 'user':
         if 'screen_name' not in config:
             sendWarning(subreddit, "Config Missing: Users screen name is required for user mode")

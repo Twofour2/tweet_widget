@@ -90,7 +90,9 @@ def getTweets(subreddit, config, subredditdata):
             isNew = True
             Tweets = tApi.user_timeline(screen_name=user, count=count, tweet_mode='extended',include_entities=True)  # gathers new tweets
             storeNewTweets(Tweets, subredditdata) # store's the new tweets away in the .data file
-        MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
+        if checkLastUpdate(subredditdata[0], Tweets[0].created_at):
+            logging.warning("Updating widget")
+            MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
     elif mode == 'list': # get tweets by many users via a list
         LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
         Tweets = checkTweets(LatestTweet, subredditdata)
@@ -98,7 +100,9 @@ def getTweets(subreddit, config, subredditdata):
             isNew = True
             Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=count, tweet_mode='extended',include_entities=True) # get new tweets
             storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
-        MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
+        if checkLastUpdate(subredditdata[0], Tweets[0].created_at):
+            logging.warning("Updating widget")
+            MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
 
 def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget
     # function also returns old tweets that are stored in /Data/"Subreddit".data files.
@@ -148,6 +152,44 @@ def getLastGatherTimestamp(subname): # returns last_gather datetime object
         return datetime.fromtimestamp(res[0])
     except Exception as e:
         logging.warning("An error occurred while getting last_gather: %s" % e)
+        return
+
+# this function confirms if this widget should be updated
+# this is here so that it upload the widget only when needed. Spamming reddit widgets every 5 minutes for no reason causes glitches
+def checkLastUpdate(subname, t_created_at):
+    try:
+        # calculate time difference
+        time_diff = datetime.utcnow() - t_created_at  # current time minus tweet time, both are UTC
+        seconds = time_diff.total_seconds()  # convert to seconds
+        if 3930 < seconds: # latest tweet is older than one hour + 5 mins and 30s, this ensures that it will display 1 hour and not 59 mins
+            cur = conn2.cursor()
+            cur.execute("SELECT last_update FROM subreddits WHERE subname='{}'".format(subname))
+            res = cur.fetchone()[0]
+            if res is None: # on first run the data is null/none, next time it'll use a timestamp
+                setLastUpdateTimestamp(subname)
+                return True
+            time_diff_res = datetime.utcnow() - datetime.fromtimestamp(res)  # tweet time - stored time
+            seconds_res = time_diff_res.total_seconds()  # convert to seconds
+            if 1800 < seconds_res: # check if half an hour has passed since the widget was last updated
+                logging.info("Half an timer hour has passed, updating widget")
+                return True
+            else: # half an hour has NOT passed, so we don't need to bother with updating the widget
+                logging.info("Waiting for half hour timer")
+                return False
+        else: # tweet is under an hour old, do update the widget
+            return True
+    except Exception as e:
+        logging.warning("An error occurred while running checkLastUpdate: %s" % e)
+        return
+
+# sets last update time, this runs AFTER the widget has been uploaded
+def setLastUpdateTimestamp(subname):
+    logging.info("Setting latest update timestamp")
+    try:
+        cur = conn2.cursor()
+        cur.execute("UPDATE subreddits SET last_update={} WHERE subname='{}'".format(datetime.utcnow().timestamp(), subname))
+    except Exception as e:
+        logging.warning("An error occurred while getting last_update: %s" % e)
         return
 
 def genericItems(t, subreddit, config): # bunch of normally repeated code between MakeMarkupUser and MakeMarkupList
@@ -238,6 +280,7 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
         for item in widgets:
             if item.shortName.lower() == 'twitterfeed': # find the feed widget
                 item.mod.update(shortname="twitterfeed", text=markup) # update the widget
+                setLastUpdateTimestamp(subreddit.display_name.lower())
                 logging.info("Updated the text for /r/%s" % subreddit.display_name)
                 return # we're done here
     except Exception as e:

@@ -259,7 +259,6 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
         else: # once markup is done
             insertMarkup(subreddit, markup, config, mode) # put it on the subreddit
     except KeyError as e:
-        print("key error")
         sendWarning(subreddit, "KeyError, check your profiles in the config! User: %s"%e)
         logging.warning("Invalid key data: %s" % e)
     except Exception as e:

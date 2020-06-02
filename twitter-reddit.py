@@ -105,10 +105,12 @@ def getTweets(subreddit, config, subredditdata):
                 MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
     except tweepy.TweepError as e:
         logging.warning(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
-        sendWarning(subredditdata[0], f"Twitter related issue, check that list and accounts are publicly visible.")
+        sendWarning(subreddit, f"Twitter related issue, check that list and accounts are publicly visible.")
+        return
     except Exception as e:
         logging.warning(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
-        sendWarning(subredditdata[0], f"Unexpected Error. Full Error: {e}")
+        sendWarning(subreddit, f"Unexpected Error. Full Error: {e}")
+        return
 
 
 def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the database, meaning that it is already in the widget

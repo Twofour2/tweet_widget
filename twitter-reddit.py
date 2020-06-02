@@ -65,7 +65,6 @@ def Main():
                 except Exception as e:
                     logging.warning("Possibly got removed, but did not update database. Or this is a config error. Exception: %s" % e)
                     sendWarning(subreddit, "An exception occurred while loading the config:\n\n %s" % e)
-                    continue
             else:
                 logging.info("Subreddit %s is disabled" % subredditdata[0])
         logging.info("Done with tweets, sleeping for 5 mins")

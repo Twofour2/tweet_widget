@@ -85,7 +85,7 @@ def removeModStatus(message):
         message.mark_read()
         cur.execute(
             "UPDATE subreddits SET enabled=False WHERE subname=%s",
-            (str(message.subreddit),),
+            (str(message.subreddit).lower(),),
         )
         logging.info("Set enabled to false for subreddit %s"%message.subreddit.display_name)
     except Exception as e:

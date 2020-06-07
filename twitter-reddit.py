@@ -2,18 +2,16 @@ import praw
 import prawcore
 import configparser
 import logging
-import traceback
 import tweepy
 import re
 import yaml
 import pickle
-import pprint
-import json
-from datetime import datetime, timezone
+from datetime import datetime
 import psycopg2
 import time
-import sys
 import os
+import notificationManager
+
 script_dir = os.path.dirname(os.path.abspath(__file__))  # get where the script is
 logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
@@ -22,11 +20,26 @@ logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INF
 # by /u/chaos_a
 # a twitter feed for subreddits
 
+class WarningCounter:
+    """Count the number of warnings thrown"""
+    def __init__(self,method):
+        self.method=method
+        self.counter=0
+
+    def __call__(self,*args,**kwargs):
+        self.counter+=1
+        return self.method(*args,**kwargs)
+
+
+
 def Main():
     logging.info("--------Starting Twitter Bot--------")
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
+    cycleCounter = 0
     while True: # run this part forever
+        cycleCounter+=1
+        logging.warning = WarningCounter(logging.warning) # setup warning tracker
         # twitter auth
         auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
         auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))
@@ -67,6 +80,22 @@ def Main():
                     sendWarning(subreddit, "An exception occurred while loading the config:\n\n %s" % e)
             else:
                 logging.info("Subreddit %s is disabled" % subredditdata[0])
+
+        # check to see how many errors occurred, then send out the appropriate notifications
+        logging.info(f"Warnings thrown during cycle: {logging.warning.counter}")
+        if logging.warning.counter > len(results)/2: # check if over half of subreddits are throwing errors
+            res = notificationManager.sendNotif(botconfig, f"Too many warnings are being thrown! {logging.warning.counter}", True)
+            if res:
+                logging.warning("notificationManager returned an error: "+res)
+        else:
+            res = notificationManager.sendNotif(botconfig, f"Cycle: {cycleCounter} \nWarnings thrown during cycle: {logging.warning.counter}", False)
+            if res:
+                logging.warning("notificationManager returned an error: "+res)
+        if not notificationManager.checkSubredditLogs(botconfig, reddit): # check subreddit logs of a test suberddit to see if tweet widget is still updating
+            res = notificationManager.sendNotif(botconfig, f"Tweet widget is not updating! Test Subreddit:{botconfig.get('reddit', 'logCheckSubreddit')}", True)
+            if res:
+                logging.warning("notificationManager returned an error: "+res)
+
         logging.info("Done with tweets, sleeping for 5 mins")
         time.sleep(300)
 

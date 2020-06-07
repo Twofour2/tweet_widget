@@ -39,6 +39,9 @@ def Main():
     cycleCounter = 0
     while True: # run this part forever
         cycleCounter+=1
+        if cycleCounter % 480 == 1: # every 480 rounds, or approx 4 days
+            with open(script_dir + "/logs/twitterBot.log", 'w') as f:  # delete the old logs
+                f.write(f"Reset Logs on UTC {datetime.utcnow()}")
         logging.warning = WarningCounter(logging.warning) # setup warning tracker
         # twitter auth
         auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))

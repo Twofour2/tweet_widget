@@ -39,7 +39,7 @@ def Main():
     cycleCounter = 0
     while True: # run this part forever
         cycleCounter+=1
-        if cycleCounter % 480 == 1: # every 480 rounds, or approx 4 days
+        if 480 % cycleCounter == 0: # every 480 rounds, or approx 4 days
             with open(script_dir + "/logs/twitterBot.log", 'w') as f:  # delete the old logs
                 f.write(f"Reset Logs on UTC {datetime.utcnow()}")
         logging.warning = WarningCounter(logging.warning) # setup warning tracker
@@ -86,7 +86,7 @@ def Main():
 
         # check to see how many errors occurred, then send out the appropriate notifications
         logging.info(f"Warnings thrown during cycle: {logging.warning.counter}")
-        if logging.warning.counter > len(results)/2: # check if over half of subreddits are throwing errors
+        if logging.warning.counter > len(results)-10: # check if most of the subreddits are throwing errors
             res = notificationManager.sendNotif(botconfig, f"Too many warnings are being thrown! {logging.warning.counter}", True)
             if res:
                 logging.warning("notificationManager returned an error: "+res)

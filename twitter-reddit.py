@@ -30,8 +30,6 @@ class WarningCounter:
         self.counter+=1
         return self.method(*args,**kwargs)
 
-
-
 def Main():
     logging.info("--------Starting Twitter Bot--------")
     botconfig = configparser.ConfigParser()
@@ -123,7 +121,7 @@ def getTweets(subreddit, config, subredditdata):
                 Tweets = tApi.user_timeline(screen_name=user, count=count, tweet_mode='extended',include_entities=True)  # gathers new tweets
                 storeNewTweets(Tweets, subredditdata) # store's the new tweets away in the .data file
             if checkLastUpdate(subredditdata[0], Tweets[0].created_at):
-                logging.warning("Updating widget")
+                logging.info("Updating widget")
                 MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
         elif mode == 'list': # get tweets by many users via a list
             LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
@@ -133,7 +131,7 @@ def getTweets(subreddit, config, subredditdata):
                 Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=count, tweet_mode='extended',include_entities=True) # get new tweets
                 storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
             if checkLastUpdate(subredditdata[0], Tweets[0].created_at):
-                logging.warning("Updating widget")
+                logging.info("Updating widget")
                 MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
     except tweepy.TweepError as e:
         logging.warning(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
@@ -421,7 +419,7 @@ def sendWarning(subreddit, message):
     for item in widgets:
         if item.shortName.lower() == 'twitterfeed':  # find the feed widget
             item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget bot:\n"+message+"\n\n"+endMsg)  # update the widget
-            logging.warning("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
+            logging.info("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
             return  # we're done here
 
 def dbConnect(botconfig):

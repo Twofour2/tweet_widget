@@ -5,7 +5,7 @@ def sendNotif(botconfig, message, pushNotif):
     """Sends a message to a discord server channel"""
     if botconfig.has_section("notification"): # check if enabled
         HEADERS = {'Authorization': "Bot {}".format(botconfig.get('notification', 'APIKey').strip('\"')),
-                   'user-agent': 'DiscordBot (https://discordapp.com/api/, 1.0)',
+                   'user-agent': 'DiscordBot (https://discordapp.com/api/), 1.0)',
                    'content-type': 'application/json'}
         URL = "https://discordapp.com/api/channels/{}/messages".format(
             botconfig.get("notification", "channelID").strip('\"'))

@@ -7,18 +7,20 @@ def sendNotif(botconfig, message, pushNotif):
         HEADERS = {'Authorization': "Bot {}".format(botconfig.get('notification', 'APIKey')),
                    'user-agent': 'DiscordBot (https://discordapp.com/api/), 1.0)',
                    'content-type': 'application/json'}
-        URL = "https://discordapp.com/api/channels/{}/messages".format(
-            botconfig.get("notification", "channelID"))
+        URLSend = "https://discordapp.com/api/channels/{}/messages".format(
+            botconfig.get("notification", "SendChannelID"))
+        URLMute = "https://discordapp.com/api/channels/{}/messages".format(
+            botconfig.get("notification", "MuteChannelID"))
 
         # check if latest message is not !mute
-        r = requests.get(url=URL, headers=HEADERS, params={"limit":2})
+        r = requests.get(url=URLMute, headers=HEADERS, params={"limit":2})
         for msg in r.json():
             if msg['content'] == "!mute":
                 return "Bot is muted." # mute the bot
         else:
             if pushNotif: # add @everyone
                 message = "@everyone: {}".format(message)
-            requests.post(url=URL, headers=HEADERS, json={"content": message, "tts": 'false'})
+            requests.post(url=URLSend, headers=HEADERS, json={"content": message, "tts": 'false'})
 
 def checkSubredditLogs(botconfig, reddit):
     """Check if tweet widget is still posting to a subreddit"""

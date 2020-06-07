@@ -34,7 +34,7 @@ def Main():
     logging.info("--------Starting Twitter Bot--------")
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
-    cycleCounter = 0
+    cycleCounter = 1
     while True: # run this part forever
         cycleCounter+=1
         if 480 % cycleCounter == 0: # every 480 rounds, or approx 4 days

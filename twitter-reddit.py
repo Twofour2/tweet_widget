@@ -78,7 +78,7 @@ def Main():
                         subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
                         logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
                     except prawcore.exceptions.NotFound: # lol
-                        logging.warning("Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: " % subreddit
+                        logging.warning("Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: %s" % subreddit
                                         .display_name)
                 except Exception as e:
                     logging.warning(f"{e.__class__.__name__}: Possibly got removed, but did not update database. Or this is a config error. Exception: {e}")

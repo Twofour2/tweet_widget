@@ -1,5 +1,10 @@
 import requests
 from datetime import datetime
+import configparser
+import os
+import praw
+import time
+
 
 def sendNotif(botconfig, message, pushNotif):
     """Sends a message to a discord server channel"""
@@ -31,4 +36,28 @@ def checkSubredditLogs(botconfig, reddit):
                 return True
     else:
         return False
+
+def checkStatus():
+    """Run the above function to check if the bot is active"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    botconfig = configparser.ConfigParser()
+    botconfig.read(script_dir + "/botconfig.ini")
+    if not checkSubredditLogs(botconfig, redditlogin(botconfig)): # bot has not posted in the last hour
+        sendNotif(botconfig, "Check status has detected that the bot is not active! Log Check Subreddit: {}".format(botconfig.get("reddit", "logCheckSubreddit")), True)
+
+def redditlogin(botconfig):
+    # reddit login
+    try:
+        r = praw.Reddit(client_id=botconfig.get("reddit", "clientID"),
+                        client_secret=botconfig.get("reddit", "clientSecret"),
+                        password=botconfig.get("reddit", "password"),
+                        user_agent=botconfig.get("reddit", "useragent"),
+                        username=botconfig.get("reddit", "username"))
+        return r
+    except Exception as e:
+        time.sleep(120)
+
+if __name__ == "__main__":
+    checkStatus() # run this only via cron
+
 

@@ -4,7 +4,6 @@ import psycopg2
 import configparser
 import os
 import time
-import sys
 import logging
 script_dir = os.path.dirname(__file__)  # get where the script is
 logging.basicConfig(filename=script_dir+'/logs/twitterBotMsg.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
@@ -116,7 +115,6 @@ def dbConnect(botconfig):
     except Exception as e:
         logging.warning("Could not connect to database: %s" % e)
         time.sleep(120)
-        sys.exit()
 
 def redditlogin(botconfig):
     # reddit login
@@ -130,7 +128,6 @@ def redditlogin(botconfig):
     except Exception as e:
         logging.warning("Could not connect to reddit: %s" % e)
         time.sleep(120)
-        sys.exit()
 
 if __name__ == "__main__":
     Main()

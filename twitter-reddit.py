@@ -31,7 +31,7 @@ class WarningCounter:
     def __call__(self,*args,**kwargs):
         global currentSubreddit
         self.counter+=1
-        notificationManager.sendLog(f"{currentSubreddit}: {str(*args)}")
+        #notificationManager.sendLog(f"{currentSubreddit}: {str(*args)}")
         return self.method(*args,**kwargs)
 
 def Main():

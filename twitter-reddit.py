@@ -10,11 +10,13 @@ from datetime import datetime
 import psycopg2
 import time
 import os
+import sys
 import notificationManager
 
 script_dir = os.path.dirname(os.path.abspath(__file__))  # get where the script is
 logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
+currentSubreddit = "" # used for sending warnings
 #
 # TWITTER WIDGET V3
 # by /u/chaos_a
@@ -27,7 +29,9 @@ class WarningCounter:
         self.counter=0
 
     def __call__(self,*args,**kwargs):
+        global currentSubreddit
         self.counter+=1
+        notificationManager.sendLog(f"{currentSubreddit}: {str(*args)}")
         return self.method(*args,**kwargs)
 
 def Main():
@@ -35,24 +39,35 @@ def Main():
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
     cycleCounter = 1
+    testMode = False
+    for arg in sys.argv:
+        if arg in ("-t", "-test"):
+            testMode = True
+            break
     while True: # run this part forever
         cycleCounter+=1
         if 480 % cycleCounter == 0: # every 480 rounds, or approx 4 days
             with open(script_dir + "/logs/twitterBot.log", 'w') as f:  # delete the old logs
-                f.write(f"Reset Logs on UTC {datetime.utcnow()}")
+                f.write(f"Reset log file on UTC {datetime.utcnow()}")
         logging.warning = WarningCounter(logging.warning) # setup warning tracker
         # twitter auth
         auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
         auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))
+        global currentSubreddit
         global tApi
         tApi = tweepy.API(auth)
         reddit = redditlogin(botconfig)
         global conn2
         conn2 = dbConnect(botconfig)
         cur = conn2.cursor()
-        cur.execute("SELECT * FROM subreddits")
+        # setup test mode
+        if testMode:
+            cur.execute("SELECT * FROM subreddits_testing")
+        else: # not in test mode, use real database
+            cur.execute("SELECT * FROM subreddits")
         results = cur.fetchall()
         for subredditdata in results: # go through every subreddit
+            currentSubreddit = subredditdata[0] # used for warnings only
             logging.info("Checking tweets for subreddit %s" % subredditdata[0])
             if subredditdata[1]: # bot is enabled for this subreddit via database
                 subreddit = reddit.subreddit(subredditdata[0]) # set the subreddit
@@ -60,14 +75,12 @@ def Main():
                     wiki = subreddit.wiki['twittercfg'].content_md # get the config wiki page
                     config = yaml.load(wiki, Loader=yaml.FullLoader) # load it
                     if config: # if the file actually works
-                        valid = checkCfg(subreddit, config) # validate that everything is correct
-                        if valid:
+                        if checkCfg(subreddit, config): # validate that everything in the config is correct
                             if config.get('enabled', False): # bot is enabled via config
                                 try:
                                     getTweets(subreddit, config, subredditdata) # get new tweets
                                 except Exception as e:
-                                    logging.warning(
-                                        f"{e.__class__.__name__}: An error occurred while checking tweets on subreddit {subredditdata[0]}: {e}")
+                                    logging.warning(f"{e.__class__.__name__}: An error occurred while checking tweets on subreddit {subredditdata[0]}: {e}")
                         else:
                             logging.warning("Bad config file on subreddit %s" % subreddit.display_name)
                     else:
@@ -80,6 +93,9 @@ def Main():
                     except prawcore.exceptions.NotFound: # lol, occurs when lacking permissions to create wiki page
                         logging.warning("Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: %s" % subreddit
                                         .display_name)
+                    except Exception as e:
+                        logging.warning(f"{e.__class__.__name__}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}")
+
                 except Exception as e:
                     logging.warning(f"{e.__class__.__name__}: Possibly got removed, but did not update database. Or this is a config error. Exception: {e}")
                     sendWarning(subreddit, "An exception occurred while loading the config:\n\n %s" % e)
@@ -88,16 +104,13 @@ def Main():
 
         # check to see how many errors occurred, then send out the appropriate notifications
         logging.info(f"Warnings thrown during cycle: {logging.warning.counter}")
-        if logging.warning.counter > len(results)-10: # check if most of the subreddits are throwing errors
-            res = notificationManager.sendNotif(botconfig, f"Too many warnings are being thrown! {logging.warning.counter}", True)
+        LoggingChannelID = botconfig.get("notification", "SendChannelID")
+        if logging.warning.counter > len(results)/2: # check if most of the subreddits are throwing errors
+            res = notificationManager.sendStatus(f"Too many warnings are being thrown! {logging.warning.counter}", True, LoggingChannelID)
             if res:
                 logging.warning("notificationManager returned an error: "+res)
         else:
-            res = notificationManager.sendNotif(botconfig, f"Cycle: {cycleCounter} \nWarnings thrown during cycle: {logging.warning.counter}", False)
-            if res:
-                logging.warning("notificationManager returned an error: "+res)
-        if not notificationManager.checkSubredditLogs(botconfig, reddit): # check subreddit logs of a test suberddit to see if tweet widget is still updating
-            res = notificationManager.sendNotif(botconfig, f"Tweet widget is not updating! Test Subreddit:{botconfig.get('reddit', 'logCheckSubreddit')}", True)
+            res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {logging.warning.counter}", False, LoggingChannelID)
             if res:
                 logging.warning("notificationManager returned an error: "+res)
 
@@ -405,6 +418,10 @@ def checkCfg(subreddit, config): # False = Failed checks, True = Pass, continue 
             logging.warning(f"{e.__class__.__name__}: Attribute error thrown. Bad config file.")
             sendWarning(subreddit, "Config Error: Missing or incorrect formatting on userlist. Check indentation/config formatting.")
             return False
+        except Exception as e: # handle case of another error happening here
+            logging.warning(f"{e.__class__.__name__}: Another. Likely bad config file.")
+            return True # might cause issues?
+
     elif config['mode'] == 'user':
         if 'screen_name' not in config:
             sendWarning(subreddit, "Config Missing: Users screen name is required for user mode")

@@ -91,7 +91,7 @@ def checkCommands():
         botconfig.get("notification", "MuteChannelID"))
 
     # get msg
-    rMsg = requests.get(url=muteURL, headers=HEADERS, params={"limit": 2})
+    rMsg = requests.get(url=muteURL, headers=HEADERS, params={"limit": 1})
     for msg in rMsg.json():
         channelID = msg['channel_id']
         serverID = botconfig.get("notification", "ServerID")
@@ -124,6 +124,12 @@ def checkCommands():
                 cur.execute("SELECT subname, enabled FROM subreddits")
                 res = cur.fetchall()
                 sendStatus("All tweet_widget subreddits: {}".format(res), False, channelID)
+            elif content.startswith("!logs"): # read out logs
+                with open(script_dir+"/logs/twitterbot.log", "r") as f:
+                    sendLog(str(f.read()))
+                    sendStatus("Sent log file to warnings channel", False, channelID)
+            else:
+                sendStatus("Unknown command, valid commands are: [!disable, !enable, !data, !list, !logs]", False, channelID)
         else:
             sendStatus("You are not admin!", False, channelID)
 

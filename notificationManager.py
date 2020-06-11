@@ -52,14 +52,14 @@ def sendStatus(message, pushNotif, channelID):
                     return "Bot is muted."  # mute the bot
             else:
                 # this will always send a new message on purpose
-                requests.post(url=channelURL, headers=HEADERS, json={"content": "<@&720441592191909979> : {}".format(message), "tts": 'false'})
+                requests.post(url=channelURL, headers=HEADERS, json={"content": f"<@&720441592191909979> : {message}", "tts": 'false'})
         else: # normal status message, just edit the old one if it exists
             r = requests.get(url=channelURL, headers=HEADERS, params={"limit": 2})
             MessageData = r.json()[0] # first message
             if MessageData['author']['username'] == botconfig.get("notification", "BotName"):
                 if not str(MessageData['content']).startswith("<@"): # prevent override of @ messages
                     # last message was by bot, so edit it
-                    requests.patch(url=channelURL+"/{}".format({MessageData['id']}), headers=HEADERS, json={"content": message})
+                    r = requests.patch(url=channelURL+f"/{MessageData['id']}", headers=HEADERS, json={"content": message})
                 else:
                     # create a new message
                     requests.post(url=channelURL, headers=HEADERS, json={"content": message, "tts": 'false'})
@@ -81,9 +81,9 @@ def checkStatus():
     """Run the above function to check if the bot is active"""
     if not checkSubredditLogs(botconfig, redditlogin(botconfig)): # bot has not posted in the last hour
         sendStatus("Check status has detected that the bot is not active! Log Check Subreddit: {}".format(botconfig.get("reddit", "logCheckSubreddit")), True)
-        sendStatus("Status: Inactive\nLast Checked on: UTC {}".format(datetime.utcnow()), False, botconfig.get("notification", "StatusChannelID"))
+        sendStatus(f"Status: Inactive\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
     else: # bot is alive
-        sendStatus("Status: Active\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
+        sendStatus(f"Status: Active\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
 
 def checkCommands():
     conn2 = dbConnect(botconfig)
@@ -95,7 +95,7 @@ def checkCommands():
     for msg in rMsg.json():
         channelID = msg['channel_id']
         serverID = botconfig.get("notification", "ServerID")
-        r = requests.get(url="https://discordapp.com/api/guilds/{}/members/{}".format(serverID, msg['author']['id']), headers=HEADERS)
+        r = requests.get(url=f"https://discordapp.com/api/guilds/{serverID}/members/{msg['author']['id']}", headers=HEADERS)
         if botconfig.get("notification", "AdminRoleID") in r.json()['roles']: # user has the admin role
             content = str(msg['content'])
             if content.startswith("!disable"): # disable a subreddit

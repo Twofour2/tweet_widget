@@ -4,6 +4,8 @@ import configparser
 import os
 import praw
 import time
+import psycopg2
+import threading
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 botconfig = configparser.ConfigParser()
@@ -75,25 +77,73 @@ def checkSubredditLogs(botconfig, reddit):
     else:
         return False
 
-def checkCommands():
-    muteURL = "https://discordapp.com/api/channels/{}/messages".format(
-        botconfig.get("notification", "MuteChannelID"))
-    r = requests.get(url=muteURL, headers=HEADERS, params={"limit": 2})
-    for msg in r.json():
-        if str(msg['content']).startswith("!remove"):
-            return "Bot is muted."  # mute the bot
-
-
 def checkStatus():
     """Run the above function to check if the bot is active"""
     if not checkSubredditLogs(botconfig, redditlogin(botconfig)): # bot has not posted in the last hour
-        sendStatus(botconfig, "Check status has detected that the bot is not active! Log Check Subreddit: {}".format(botconfig.get("reddit", "logCheckSubreddit")), True)
-        sendStatus(botconfig, f"Status: Inactive\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
+        sendStatus("Check status has detected that the bot is not active! Log Check Subreddit: {}".format(botconfig.get("reddit", "logCheckSubreddit")), True)
+        sendStatus(f"Status: Inactive\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
     else: # bot is alive
-        sendStatus(botconfig, "Status: Active\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
+        sendStatus("Status: Active\nLast Checked on: UTC {datetime.utcnow()}", False, botconfig.get("notification", "StatusChannelID"))
 
-    # finally, read commands
-    checkCommands()
+def checkCommands():
+    conn2 = dbConnect(botconfig)
+    muteURL = "https://discordapp.com/api/channels/{}/messages".format(
+        botconfig.get("notification", "MuteChannelID"))
+
+    # get msg
+    rMsg = requests.get(url=muteURL, headers=HEADERS, params={"limit": 2})
+    for msg in rMsg.json():
+        channelID = msg['channel_id']
+        serverID = botconfig.get("notification", "ServerID")
+        r = requests.get(url="https://discordapp.com/api/guilds/{}/members/{}".format(serverID, msg['author']['id']), headers=HEADERS)
+        if botconfig.get("notification", "AdminRoleID") in r.json()['roles']: # user has the admin role
+            content = str(msg['content'])
+            if content.startswith("!disable"): # disable a subreddit
+                idx = content.index(" ") + 1
+                subname = content[idx:]
+                cur = conn2.cursor()
+                cur.execute(
+                    "UPDATE subreddits SET enabled=False WHERE subname=%s",
+                    (subname.lower(),),
+                )
+            elif content.startswith("!enable"): # enable a subreddit
+                idx = content.index(" ") + 1
+                subname = content[idx:]
+                cur = conn2.cursor()
+                cur.execute(
+                    "UPDATE subreddits SET enabled=True WHERE subname=%s",
+                    (subname.lower(),),
+                )
+            elif content.startswith("!data"): # list all database data
+                cur = conn2.cursor()
+                cur.execute("SELECT * FROM subreddits")
+                res = cur.fetchall()
+                sendStatus("All database info: {}".format(res), False, channelID)
+            elif content.startswith("!list"): # list all subreddits
+                cur = conn2.cursor()
+                cur.execute("SELECT subname, enabled FROM subreddits")
+                res = cur.fetchall()
+                sendStatus("All tweet_widget subreddits: {}".format(res), False, channelID)
+        else:
+            sendStatus("You are not admin!", False, channelID)
+
+def dbConnect(botconfig):
+    # DB Connection
+    dbName = botconfig.get("database", "dbName")
+    dbPasswrd = botconfig.get("database", "dbPassword")
+    dbUser = botconfig.get("database", "dbUsername")
+    dbHost = botconfig.get("database", "dbHost")
+    try:
+        global conn2
+        conn2 = psycopg2.connect(
+            "dbname='{0}' user='{1}' host='{2}' password='{3}'".format(
+                dbName, dbUser, dbHost, dbPasswrd
+            )
+        )
+        conn2.autocommit = True
+        return conn2
+    except Exception as e:
+        time.sleep(120)
 
 def redditlogin(botconfig):
     # reddit login
@@ -108,6 +158,10 @@ def redditlogin(botconfig):
         time.sleep(120)
 
 if __name__ == "__main__":
-    checkStatus() # run this only via cron
+    while True:
+        checkStatus() # update the status
+        checkCommands() # check for any new commands
+        time.sleep(300) # wait 5 mins
+
 
 

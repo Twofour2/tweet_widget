@@ -125,7 +125,7 @@ def checkCommands():
                 res = cur.fetchall()
                 sendStatus("All tweet_widget subreddits: {}".format(res), False, channelID)
             elif content.startswith("!logs"): # read out logs
-                with open(script_dir+"/logs/twitterbot.log", "r") as f:
+                with open(script_dir+"/logs/twitterBot.log", "r") as f:
                     sendLog(str(f.read()))
                     sendStatus("Sent log file to warnings channel", False, channelID)
             else:

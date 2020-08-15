@@ -141,11 +141,11 @@ def getTweets(subreddit, config, subredditdata):
                 logging.info("Updating widget")
                 MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
         elif mode == 'list': # get tweets by many users via a list
-            LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
+            LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'].lower(), count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
             Tweets = checkTweets(LatestTweet, subredditdata)
             if not Tweets: # returned as false, get new tweets
                 isNew = True
-                Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'], count=count, tweet_mode='extended',include_entities=True) # get new tweets
+                Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'].lower(), count=count, tweet_mode='extended',include_entities=True) # get new tweets
                 storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
             if checkLastUpdate(subredditdata[0], Tweets[0].created_at):
                 logging.info("Updating widget")
@@ -321,7 +321,7 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             if mode == "user": # default to profile url
                 markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config.get('screen_name')))
             elif mode == "list": # default to list url (owner username/lists/listname)
-                markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list')))
+                markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list').lower()))
         markup+= "\n\n~~" # open code area
         markup+= "Widget last updated: {}".format(datetime.utcnow().strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
         markup+= "Last retrieved tweets: {}".format(getLastGatherTimestamp(subreddit.display_name.lower()).strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")

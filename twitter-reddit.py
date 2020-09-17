@@ -14,7 +14,7 @@ import os
 import sys
 import notificationManager
 
-script_dir = os.path.dirname(inspect.getfile(lambda: None))  # get where the script is
+script_dir = os.path.split(os.path.realpath(__file__))[0]  # get where the script is
 logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 currentSubreddit = "" # used for sending warnings

@@ -6,6 +6,7 @@ import tweepy
 import re
 import yaml
 import pickle
+import inspect
 from datetime import datetime
 import psycopg2
 import time
@@ -13,7 +14,7 @@ import os
 import sys
 import notificationManager
 
-script_dir = os.path.dirname(os.path.abspath(__file__))  # get where the script is
+script_dir = os.path.dirname(inspect.getfile(lambda: None))  # get where the script is
 logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 currentSubreddit = "" # used for sending warnings

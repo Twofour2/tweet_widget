@@ -131,3 +131,5 @@ dmypy.json
 # config files
 *.ini
 /Data/
+
+.idea

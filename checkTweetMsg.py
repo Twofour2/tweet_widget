@@ -1,5 +1,6 @@
 import praw
 import praw.models.util
+import prawcore
 import inspect
 import psycopg2
 import configparser
@@ -23,31 +24,39 @@ def Main():
     checkMail(r)
 
 def checkMail(r):
-    for msg in praw.models.util.stream_generator(r.inbox.unread): # stream unread messages
-        if not isinstance(msg, praw.models.Message):
-            msg.mark_read()
-            continue
-        logging.info("Got message %s" % msg.body)
-        if (
-            msg.body.startswith("**gadzooks!")
-            or msg.body.startswith("gadzooks!")
-            or msg.subject.startswith("invitation to moderate")
-        ):
-            acceptModInvite(msg)
-            createConfig(msg.subreddit) # create the config file
-            msg.mark_read()
-            continue
-        if msg.subject.strip().lower().startswith("moderator message from"):
-            msg.mark_read()
-            continue
-        if "You have been removed as a moderator from" in msg.body:
-            logging.info("Removing self from subreddit %s"%msg.subreddit.display_name)
-            removeModStatus(msg)
-            continue
+    try:
+        for msg in praw.models.util.stream_generator(r.inbox.unread): # stream unread messages
+            if not isinstance(msg, praw.models.Message):
+                msg.mark_read()
+                continue
+            logging.info("Got message %s" % msg.body)
+            if (
+                msg.body.startswith("**gadzooks!")
+                or msg.body.startswith("gadzooks!")
+                or msg.subject.startswith("invitation to moderate")
+            ):
+                acceptModInvite(msg)
+                createConfig(msg.subreddit) # create the config file
+                msg.mark_read()
+                continue
+            if msg.subject.strip().lower().startswith("moderator message from"):
+                msg.mark_read()
+                continue
+            if "You have been removed as a moderator from" in msg.body:
+                logging.info("Removing self from subreddit %s"%msg.subreddit.display_name)
+                removeModStatus(msg)
+                continue
 
-        else:
-            msg.mark_read()
-            continue
+            else:
+                msg.mark_read()
+                continue
+    except prawcore.ServerError as e:
+        logging.error(f"Server error: {e}")
+    except prawcore.RequestException as e:
+        logging.error(f"Request Exception: {e}")
+    except Exception as e:
+        logging.error(f"An exception occurred: {e}")
+
 
 def acceptModInvite(message):
     try:

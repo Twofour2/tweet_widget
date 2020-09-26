@@ -30,10 +30,13 @@ class WarningCounter:
         self.counter=0
 
     def __call__(self,*args,**kwargs):
-        global currentSubreddit
-        self.counter+=1
-        #notificationManager.sendLog(f"{currentSubreddit}: {str(*args)}", True)
-        return self.method(*args,**kwargs)
+        try:
+            global currentSubreddit
+            self.counter+=1
+            #notificationManager.sendLog(f"{currentSubreddit}: {str(*args)}", True)
+            return self.method(*args,**kwargs)
+        except Exception as e:
+            logging.error(f"Warning counter issue: {e}")
 
 def Main():
     logging.info("--------Starting Twitter Bot--------")

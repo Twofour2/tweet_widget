@@ -16,12 +16,17 @@ logging.basicConfig(filename=script_dir+'/logs/twitterBotMsg.log',level=logging.
 # Checks messages for the bot account
 
 def Main():
-    botconfig = configparser.ConfigParser()
-    botconfig.read(script_dir + "/botconfig.ini")
-    global conn2
-    conn2 = dbConnect(botconfig)
-    r = redditlogin(botconfig)
-    checkMail(r)
+    while True:
+        try:
+            botconfig = configparser.ConfigParser()
+            botconfig.read(script_dir + "/botconfig.ini")
+            global conn2
+            conn2 = dbConnect(botconfig)
+            r = redditlogin(botconfig)
+            checkMail(r)
+        except Exception as e:
+            logging.warning(f"An exception occurred: {e}")
+
 
 def checkMail(r):
     try:

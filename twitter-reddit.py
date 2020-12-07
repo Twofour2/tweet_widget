@@ -53,6 +53,7 @@ def Main():
                     f.write(f"Reset log file on UTC {datetime.utcnow()}")
             #Warning.Warn = WarningCounter(Warning.Warn) # setup warning tracker
             # twitter auth
+            Warning.counter = 0
             auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
             auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))
             global currentSubreddit

@@ -23,20 +23,15 @@ currentSubreddit = "" # used for sending warnings
 # by /u/chaos_a
 # a twitter feed for subreddits
 
-class WarningCounter:
+class Warning:
     """Count the number of warnings thrown"""
     def __init__(self,method):
-        self.method=method
         self.counter=0
 
-    def __call__(self,*args,**kwargs):
-        try:
-            global currentSubreddit
-            self.counter+=1
-            #notificationManager.sendLog(f"{currentSubreddit}: {str(*args)}", True)
-            return self.method(*args,**kwargs)
-        except Exception as e:
-            logging.error(f"Warning counter issue: {e}")
+    def Warn(self, message):
+        self.counter+=1
+        logging.warning(message)
+
 
 def Main():
     logging.info("--------Starting Twitter Bot--------")
@@ -54,7 +49,7 @@ def Main():
             if 480 % cycleCounter == 0: # every 480 rounds, or approx 4 days
                 with open(script_dir + "/logs/twitterBot.log", 'w') as f:  # delete the old logs
                     f.write(f"Reset log file on UTC {datetime.utcnow()}")
-            logging.warning = WarningCounter(logging.warning) # setup warning tracker
+            #Warning.Warn = WarningCounter(Warning.Warn) # setup warning tracker
             # twitter auth
             auth = tweepy.OAuthHandler(botconfig.get("twitter", "APIKey"), botconfig.get("twitter", "APISecret"))
             auth.set_access_token(botconfig.get("twitter", "AccessToken"), botconfig.get("twitter", "TokenSecret"))
@@ -85,39 +80,39 @@ def Main():
                                     try:
                                         getTweets(subreddit, config, subredditdata) # get new tweets
                                     except Exception as e:
-                                        logging.warning(f"{e.__class__.__name__}: An error occurred while checking tweets on subreddit {subredditdata[0]}: {e}")
+                                        Warning.Warn(f"{e.__class__.__name__}: An error occurred while checking tweets on subreddit {subredditdata[0]}: {e}")
                             else:
-                                logging.warning("Bad config file on subreddit %s" % subreddit.display_name)
+                                Warning.Warn("Bad config file on subreddit %s" % subreddit.display_name)
                         else:
-                            logging.warning("BROKEN CONFIG FILE on subreddit %s" % subreddit.display_name)
+                            Warning.Warn("BROKEN CONFIG FILE on subreddit %s" % subreddit.display_name)
 
                     except prawcore.exceptions.NotFound:
                         try:
                             subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
                             logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
                         except prawcore.exceptions.NotFound: # lol, occurs when lacking permissions to create wiki page
-                            logging.warning("Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: %s" % subreddit
+                            Warning.Warn("Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: %s" % subreddit
                                             .display_name)
                         except Exception as e:
-                            logging.warning(f"{e.__class__.__name__}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}")
+                            Warning.Warn(f"{e.__class__.__name__}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}")
 
                     except Exception as e:
-                        logging.warning(f"{e.__class__.__name__}: Possibly got removed, but did not update database. Or this is a config error. Exception: {e}")
+                        Warning.Warn(f"{e.__class__.__name__}: Possibly got removed, but did not update database. Or this is a config error. Exception: {e}")
                         sendWarning(subreddit, "An exception occurred while loading the config:\n\n %s" % e)
                 else:
                     logging.info("Subreddit %s is disabled" % subredditdata[0])
 
             # check to see how many errors occurred, then send out the appropriate notifications
-            logging.info(f"Warnings thrown during cycle: {logging.warning.counter}")
+            logging.info(f"Warnings thrown during cycle: {Warning.Warn.counter}")
             LoggingChannelID = botconfig.get("notification", "SendChannelID")
-            if logging.warning.counter > len(results)/2: # check if most of the subreddits are throwing errors
-                res = notificationManager.sendStatus(f"Too many warnings are being thrown! {logging.warning.counter}", True, LoggingChannelID)
+            if Warning.Warn.counter > len(results)/2: # check if most of the subreddits are throwing errors
+                res = notificationManager.sendStatus(f"Too many warnings are being thrown! {Warning.Warn.counter}", True, LoggingChannelID)
                 if res:
-                    logging.warning("notificationManager returned an error: "+res)
+                    Warning.Warn("notificationManager returned an error: "+res)
             else:
-                res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {logging.warning.counter}", False, LoggingChannelID)
+                res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {Warning.Warn.counter}", False, LoggingChannelID)
                 if res:
-                    logging.warning("notificationManager returned an error: "+res)
+                    Warning.Warn("notificationManager returned an error: "+res)
 
             logging.info("Done with tweets, sleeping for 5 mins")
             time.sleep(300)
@@ -161,11 +156,11 @@ def getTweets(subreddit, config, subredditdata):
                 logging.info("Updating widget")
                 MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
     except tweepy.TweepError as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
         sendWarning(subreddit, f"Twitter related issue, check that list and accounts are publicly visible.")
         return
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while gathering tweets: {e}")
         sendWarning(subreddit, f"Unexpected Error. Full Error: {e}")
         return
 
@@ -188,9 +183,9 @@ def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the d
             return False # gather new tweets
     except Exception as e:
         if e == IndexError:
-            logging.warning(f"{e.__class__.__name__}: Has user posted a tweet? subreddit: {subredditdata[0]}, error {e}")
+            Warning.Warn(f"{e.__class__.__name__}: Has user posted a tweet? subreddit: {subredditdata[0]}, error {e}")
         else:
-            logging.warning("An error occurred while checking/gathering stored tweets: %s" %e)
+            Warning.Warn("An error occurred while checking/gathering stored tweets: %s" %e)
         return False # gather new tweets anyways
 
 def storeNewTweets(Tweets, subredditdata): # stores the new tweets so they can be used again
@@ -201,14 +196,14 @@ def storeNewTweets(Tweets, subredditdata): # stores the new tweets so they can b
             pickle.dump(Tweets, f)
         logging.info("Successfully stored new tweets to .data file")
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while storing new tweets: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while storing new tweets: {e}")
     # store timestamp
     global conn
     try:
         cur = conn2.cursor()
         cur.execute("UPDATE subreddits SET last_gather={} WHERE subname='{}'".format(datetime.utcnow().timestamp(), subredditdata[0]))
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while storing last_gather: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while storing last_gather: {e}")
 
 def getLastGatherTimestamp(subname): # returns last_gather datetime object
     try:
@@ -217,7 +212,7 @@ def getLastGatherTimestamp(subname): # returns last_gather datetime object
         res = cur.fetchone()
         return datetime.fromtimestamp(res[0])
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while getting last_gather: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while getting last_gather: {e}")
         return
 
 # this function confirms if this widget should be updated
@@ -245,7 +240,7 @@ def checkLastUpdate(subname, t_created_at):
         else: # tweet is under an hour old, do update the widget
             return True
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while running checkLastUpdate: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while running checkLastUpdate: {e}")
         return
 
 # sets last update time, this runs AFTER the widget has been uploaded
@@ -255,7 +250,7 @@ def setLastUpdateTimestamp(subname):
         cur = conn2.cursor()
         cur.execute("UPDATE subreddits SET last_update={} WHERE subname='{}'".format(datetime.utcnow().timestamp(), subname))
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while getting last_update: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while getting last_update: {e}")
         return
 
 def genericItems(t, subreddit, config): # bunch of normally repeated code between MakeMarkupUser and MakeMarkupList
@@ -271,7 +266,7 @@ def genericItems(t, subreddit, config): # bunch of normally repeated code betwee
                 tweet_text = "*🔁{} Retweeted*\n\n**[{} *@{}*]({}) *-* [*{}*]({})**  \n{}".format(t.user.name, t.retweeted_status.user.name, t.retweeted_status.user.screen_name, profileUrl+t.retweeted_status.user.screen_name.lower(), timestampStrRT, hotlinkFormatRT, tweet_text)
                 fulltext = tweet_text.replace("\n","\n>>")  # double quotes so that it forms two blockquote elements
             except Exception as e:
-                logging.warning(f"{e.__class__.__name__}: An error occurred while formatting a retweet: {e}")
+                Warning.Warn(f"{e.__class__.__name__}: An error occurred while formatting a retweet: {e}")
                 return
         else: # isn't a retweet, just normal stuff
             tweet_text = tweetFormatting(t, t.full_text) # do tweet formatting
@@ -284,7 +279,7 @@ def genericItems(t, subreddit, config): # bunch of normally repeated code betwee
         return hotlinkFormat, timestampStr, profileUrl, fulltext, screen_name
 
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while formatting a tweet/retweet: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while formatting a tweet/retweet: {e}")
 
 def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
     try:
@@ -298,7 +293,7 @@ def MakeMarkupUser(Tweets, subreddit, config, mode): # twitter user mode
         else: # once markup is done
             insertMarkup(subreddit, markup, config, mode) # put it on the subreddit
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while making the markup on subreddit {subreddit.display_name}: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while making the markup on subreddit {subreddit.display_name}: {e}")
 
 def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
     global timezone
@@ -319,9 +314,9 @@ def MakeMarkupList(Tweets, subreddit, config, mode): # twitter list mode
             insertMarkup(subreddit, markup, config, mode) # put it on the subreddit
     except KeyError as e:
         sendWarning(subreddit, "KeyError, check your profiles in the config! User: %s"%e)
-        logging.warning("Invalid key data: %s" % e)
+        Warning.Warn("Invalid key data: %s" % e)
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while making the markup on subreddit {subreddit.display_name}: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while making the markup on subreddit {subreddit.display_name}: {e}")
 
 def insertMarkup(subreddit, markup, config, mode): # places the markup into the widget
     try:
@@ -339,7 +334,7 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             markup+= "[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
         markup += "~~" # close code area
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while doing end of widget text: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while doing end of widget text: {e}")
     try:
         widgets = subreddit.widgets.sidebar  # get all widgets
         for item in widgets:
@@ -349,7 +344,7 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
                 logging.info("Updated the text for /r/%s" % subreddit.display_name)
                 return # we're done here
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while dealing with widgets on subreddit {subreddit.display_name}: {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while dealing with widgets on subreddit {subreddit.display_name}: {e}")
 
 def convertTime(t_created_at):
     time_diff = datetime.utcnow() - t_created_at # current time minus tweet time, both are UTC
@@ -388,7 +383,7 @@ def tweetFormatting(t, tweet_text): # does a bunch of formatting to various part
                 else: # links directly to the tweet/media item
                     tweet_text = tweet_text.replace(i['url'], linkformat.format(i['display_url'], i['expanded_url'])) # same as above, but links to the tweet rather than directly to content
     except Exception as e:
-        logging.warning(f"{e.__class__.__name__}: An error occurred while formatting {e}")
+        Warning.Warn(f"{e.__class__.__name__}: An error occurred while formatting {e}")
 
     # find @ symbols and link to the tagged users profile
     twitterprofileUrl = "*[@{}](https://www.twitter.com/{})*"
@@ -425,11 +420,11 @@ def checkCfg(subreddit, config): # False = Failed checks, True = Pass, continue 
         try:
             config['users'].items()
         except AttributeError as e: # added due to a config file lacking indents
-            logging.warning(f"{e.__class__.__name__}: Attribute error thrown. Bad config file.")
+            Warning.Warn(f"{e.__class__.__name__}: Attribute error thrown. Bad config file.")
             sendWarning(subreddit, "Config Error: Missing or incorrect formatting on userlist. Check indentation/config formatting.")
             return False
         except Exception as e: # handle case of another error happening here
-            logging.warning(f"{e.__class__.__name__}: Another. Likely bad config file.")
+            Warning.Warn(f"{e.__class__.__name__}: Another. Likely bad config file.")
             return True # might cause issues?
 
     elif config['mode'] == 'user':
@@ -470,7 +465,7 @@ def dbConnect(botconfig):
         conn2.autocommit = True
         return conn2
     except Exception as e: # could not connect
-        logging.warning(f"{e.__class__.__name__}: Cannot connect to database")
+        Warning.Warn(f"{e.__class__.__name__}: Cannot connect to database")
         time.sleep(120)
 
 def redditlogin(botconfig):
@@ -484,7 +479,7 @@ def redditlogin(botconfig):
         me = r.user.me()
         return r # return reddit instance
     except Exception as e: # reddit is down
-        logging.warning(f"{e.__class__.__name__}: Reddit/PRAW Issue, site may be down")
+        Warning.Warn(f"{e.__class__.__name__}: Reddit/PRAW Issue, site may be down")
         time.sleep(120)
 
 if __name__ == "__main__":

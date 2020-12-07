@@ -439,16 +439,19 @@ def checkCfg(subreddit, config): # False = Failed checks, True = Pass, continue 
     return True # if the code get's here nothing went wrong
 
 def sendWarning(subreddit, message):
-    endMsg = "\n\n*"
-    endMsg+="[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
-    endMsg+= "*"
-    message = message.replace("\n", "\n  ")
-    widgets = subreddit.widgets.sidebar  # get all widgets
-    for item in widgets:
-        if item.shortName.lower() == 'twitterfeed':  # find the feed widget
-            item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget bot:\n"+message+"\n\n"+endMsg)  # update the widget
-            logging.info("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
-            return  # we're done here
+    try:
+        endMsg = "\n\n*"
+        endMsg+="[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
+        endMsg+= "*"
+        message = message.replace("\n", "\n  ")
+        widgets = subreddit.widgets.sidebar  # get all widgets
+        for item in widgets:
+            if item.shortName.lower() == 'twitterfeed':  # find the feed widget
+                item.mod.update(shortname="twitterfeed", text="An error occurred with tweet_widget bot:\n"+message+"\n\n"+endMsg)  # update the widget
+                logging.info("An error message ({}) was posted to /r/{}".format(message, subreddit.display_name))
+                return  # we're done here
+    except Exception as e:
+        logging.error(f"An error occurred while sending a warning: {e}")
 
 def dbConnect(botconfig):
     # DB Connection

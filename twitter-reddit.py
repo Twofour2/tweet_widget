@@ -64,6 +64,7 @@ def Main():
             cur = conn2.cursor()
             # setup test mode
             if testMode:
+                print("Test mode")
                 cur.execute("SELECT * FROM subreddits_testing")
             else: # not in test mode, use real database
                 cur.execute("SELECT * FROM subreddits")
@@ -83,6 +84,8 @@ def Main():
                                         getTweets(subreddit, config, subredditdata) # get new tweets
                                     except Exception as e:
                                         Warning.Warn(f"{e.__class__.__name__}: An error occurred while checking tweets on subreddit {subredditdata[0]}: {e}")
+                                else:
+                                    logging.info(f"Subreddit {subreddit.display_name} is disabled")
                             else:
                                 Warning.Warn("Bad config file on subreddit %s" % subreddit.display_name)
                         else:
@@ -108,11 +111,11 @@ def Main():
             logging.info(f"Warnings thrown during cycle: {Warning.counter}")
             LoggingChannelID = botconfig.get("notification", "SendChannelID")
             if Warning.counter > len(results)/2: # check if most of the subreddits are throwing errors
-                res = notificationManager.sendStatus(f"Too many warnings are being thrown! {Warning.Warn.counter}", True, LoggingChannelID)
+                res = notificationManager.sendStatus(f"Too many warnings are being thrown! {Warning.counter}", True, LoggingChannelID)
                 if res:
                     Warning.Warn("notificationManager returned an error: "+res)
             else:
-                res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {Warning.Warn.counter}", False, LoggingChannelID)
+                res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {Warning.counter}", False, LoggingChannelID)
                 if res:
                     Warning.Warn("notificationManager returned an error: "+res)
 
@@ -123,20 +126,29 @@ def Main():
             time.sleep(200)
         except Exception as e:
             logging.error(f"Exception: {e}")
+            time.sleep(200)
 
 def getTweets(subreddit, config, subredditdata):
     try:
+        print("here0"+subreddit.display_name)
         global isNew
         isNew = False # informs late code that tweets are either new or old
         if 'mode' in config:
+            print("here1")
             mode = config.get('mode') # get current mode
         else:
+            print("here3")
             sendWarning(subreddit, "Config Error: Missing mode type (list/user)")
             return
+        print("here4")
         count = config.get('count', 7) # get number of tweets to display
+        print("here4.5")
         if count > 15: # enforce limit
             count = 15
+            print("here6")
+        print("here5")
         if mode == 'user': # get tweets from a single user
+            print("here7")
             user = config.get('screen_name')
             LatestTweet = tApi.user_timeline(screen_name=user, count=1, tweet_mode='extended', include_entities=True)  # get first tweets id number
             Tweets = checkTweets(LatestTweet, subredditdata) # check LatestTweet is latest, if it is it just returns stored tweets, otherwise we need to get new tweets here
@@ -148,12 +160,30 @@ def getTweets(subreddit, config, subredditdata):
                 logging.info("Updating widget")
                 MakeMarkupUser(Tweets, subreddit, config, mode)  # use the user markup function
         elif mode == 'list': # get tweets by many users via a list
-            LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'].lower(), count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
-            Tweets = checkTweets(LatestTweet, subredditdata)
-            if not Tweets: # returned as false, get new tweets
-                isNew = True
-                Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=config['list'].lower(), count=count, tweet_mode='extended',include_entities=True) # get new tweets
-                storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
+            # note: yes this is a mess and really this whole file needs to re-written from scratch
+            # some of the code here had to be duplicated to support list id's as the old list name method broke
+            list = config.get("list")
+            if isinstance(list, str): # if not number
+                logging.info("Using list name mode for list id")
+                LatestTweet = tApi.list_timeline(owner_screen_name=config['owner'], slug=list.lower(), count=1, tweet_mode='extended',include_entities=True)  # get first tweets id number
+                Tweets = checkTweets(LatestTweet, subredditdata)
+                if not Tweets: # returned as false, get new tweets
+                    isNew = True
+                    Tweets = tApi.list_timeline(owner_screen_name=config['owner'], slug=list, count=count, tweet_mode='extended',include_entities=True) # get new tweets
+                    storeNewTweets(Tweets, subredditdata) # store's the tweets away in the .data file
+            elif isinstance(list, int): # number mode
+                logging.info("Using number mode for list id")
+                list_id = config.get("list")
+                LatestTweet = tApi.list_timeline(list_id=list_id, count=1,tweet_mode='extended',include_entities=True)  # get first tweets id number
+                Tweets = checkTweets(LatestTweet, subredditdata)
+                if not Tweets:  # returned as false, get new tweets
+                    isNew = True
+                    Tweets = tApi.list_timeline(list_id=list_id, count=count,
+                                                tweet_mode='extended', include_entities=True)  # get new tweets
+                    storeNewTweets(Tweets, subredditdata)  # store's the tweets away in the .data file
+            else:
+                Warning.Warn("Unknown listid mode!")
+                sendWarning(subreddit, "Unknown list_id mode, please message /r/tweet_widget if you see this.")
             if checkLastUpdate(subredditdata[0], Tweets[0].created_at):
                 logging.info("Updating widget")
                 MakeMarkupList(Tweets, subreddit, config, mode) # use the list markup function
@@ -179,6 +209,7 @@ def checkTweets(Tweets, subredditdata): # checks if the latest tweet is in the d
                 logging.info("Stored tweet is latest, using data file instead of getting more tweets for subreddit %s" % subredditdata[0])
                 return data # return stored tweets (becomes Tweets)
         else: # latest tweet does not match stored tweet, get new tweets
+            print("Updating database?")
             cur = conn2.cursor()
             cur.execute("UPDATE subreddits SET latest={} WHERE subname='{}'".format(Tweets[0].id_str,subredditdata[0])) # update latest id number
             logging.info("Getting new tweets for subreddit %s" % subredditdata[0])
@@ -328,7 +359,13 @@ def insertMarkup(subreddit, markup, config, mode): # places the markup into the 
             if mode == "user": # default to profile url
                 markup += ("\n\n**[View more tweets](https://www.twitter.com/{})**".format(config.get('screen_name')))
             elif mode == "list": # default to list url (owner username/lists/listname)
-                markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list').lower()))
+                list = config.get('list')
+                if isinstance(list, str):
+                    markup += ("\n\n**[View more tweets](https://www.twitter.com/{}/lists/{})**".format(config.get('owner'), config.get('list').lower()))
+                elif isinstance(list, int):
+                    markup += ("\n\n**[View more tweets](https://www.twitter.com/i/lists/{})**".format(list))
+                else:
+                    logging.warning(f"Unknown list type {list}")
         markup+= "\n\n~~" # open code area
         markup+= "Widget last updated: {}".format(datetime.utcnow().strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
         markup+= "Last retrieved tweets: {}".format(getLastGatherTimestamp(subreddit.display_name.lower()).strftime("%-d %b at %-I:%M %p")+" (UTC)  \n")
@@ -410,12 +447,13 @@ def checkCfg(subreddit, config): # False = Failed checks, True = Pass, continue 
         sendWarning(subreddit, "Config Missing: mode")
         return False
     if config['mode'] == 'list':
-        if 'owner' not in config:
-            sendWarning(subreddit, "Config Missing: Owner data is required for list mode")
-            return False
         if 'list' not in config:
             sendWarning(subreddit, "Config Missing: List name is required for list mode")
             return False
+        if isinstance(config.get("list"), str):
+            if 'owner' not in config:
+                sendWarning(subreddit, "Config Missing: Owner name is required for list mode ONLY WHEN using the list name")
+                return False
         if 'users' not in config:
             sendWarning(subreddit, "Config Missing: Username's (users) are required for list mode")
             return False
@@ -462,6 +500,7 @@ def dbConnect(botconfig):
     # INFO: database is setup is: subreddits(subname varchar, enabled bool DEFAULT True, latest varchar)
     try:
         global conn2
+        print(dbName, dbUser, dbHost, dbPasswrd)
         conn2 = psycopg2.connect( # connect
             "dbname='{0}' user='{1}' host='{2}' password='{3}'".format(
                 dbName, dbUser, dbHost, dbPasswrd

@@ -23,9 +23,9 @@ currentSubreddit = "" # used for sending warnings
 # by /u/chaos_a
 # a twitter feed for subreddits
 
-class Warning:
+class WarningHandler:
     """Count the number of warnings thrown"""
-    def __init__(self,method):
+    def __init__(self):
         self.counter=0
 
     def Warn(self, message):
@@ -34,11 +34,13 @@ class Warning:
 
 
 def Main():
+    global Warning
     logging.info("--------Starting Twitter Bot--------")
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
     cycleCounter = 1
     testMode = False
+    Warning = WarningHandler()
     for arg in sys.argv:
         if arg in ("-t", "-test"):
             testMode = True

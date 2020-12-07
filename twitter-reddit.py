@@ -105,9 +105,9 @@ def Main():
                     logging.info("Subreddit %s is disabled" % subredditdata[0])
 
             # check to see how many errors occurred, then send out the appropriate notifications
-            logging.info(f"Warnings thrown during cycle: {Warning.Warn.counter}")
+            logging.info(f"Warnings thrown during cycle: {Warning.counter}")
             LoggingChannelID = botconfig.get("notification", "SendChannelID")
-            if Warning.Warn.counter > len(results)/2: # check if most of the subreddits are throwing errors
+            if Warning.counter > len(results)/2: # check if most of the subreddits are throwing errors
                 res = notificationManager.sendStatus(f"Too many warnings are being thrown! {Warning.Warn.counter}", True, LoggingChannelID)
                 if res:
                     Warning.Warn("notificationManager returned an error: "+res)

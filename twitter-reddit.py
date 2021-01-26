@@ -96,7 +96,7 @@ def Main():
                         try:
                             subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nmode: user')
                             logging.info("Created wiki page on subreddit %s" % subreddit.display_name)
-                        except prawcore.exceptions.NotFound: # lol, occurs when lacking permissions to create wiki page
+                        except prawcore.exceptions.NotFound: # occurs when lacking permissions to create wiki page
                             Warning.Warn("Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: %s" % subreddit
                                             .display_name)
                         except Exception as e:

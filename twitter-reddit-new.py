@@ -102,7 +102,7 @@ def uploadProfileImages(allSubreddits):
     # We need to run another instance of this script as if it is run from the same main script praw will use a cache of the first widget upload. Which causes the images to break and become grey
     # TLDR: We need to run another copy of this script because new reddits widget system is buggy and broken
     try:
-        uploadImagesProcess = subprocess.run([sys.executable or 'python', script_dir + "\\twitter-reddit-new.py", "-u"], shell=True, timeout=500)  # note: incorrect usage can cause this to loop
+        uploadImagesProcess = subprocess.run([sys.executable or 'python3', script_dir + "/twitter-reddit-new.py", "-u"], timeout=500)  # note: incorrect usage can cause this to loop. shell=True needs to be added for windows systems
         if uploadImagesProcess.returncode == 150:
             for twSub in allSubreddits: # go through all of the subreddits and perform the bugfix version of the widget upload
                 twSub.bugFixImageUpload = True

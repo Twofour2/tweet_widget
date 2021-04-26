@@ -369,11 +369,11 @@ class ImageUploader:
                     extension = ".png"
                 else:
                     extension = ".unknown"
-                if not os.path.exists(rf"{script_dir}/Data/ProfileImages/{caller.Name}"):
+                if not os.path.exists(rf"{script_dir}/ProfileImages/{caller.Name}"):
                     logging.info(f"Directory does not exist for {caller.Name}")
-                    os.mkdir(rf"{script_dir}/Data/ProfileImages/{caller.Name}")
+                    os.mkdir(rf"{script_dir}/ProfileImages/{caller.Name}")
                 profileImage = Image.open(image)
-                fileLocation = rf"{script_dir}/Data/ProfileImages/{caller.Name}/profile{profileCounter}{extension}"
+                fileLocation = rf"{script_dir}/ProfileImages/{caller.Name}/profile{profileCounter}{extension}"
                 profileImage.save(fileLocation, subsampling=0, quality=100, dpi=(400,400))
                 width, height = profileImage.size
                 imageInfo = {"width": width, "height": height, "location": fileLocation, "name": f"profile{profileCounter}"}

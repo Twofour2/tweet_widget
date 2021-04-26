@@ -12,7 +12,6 @@ import psycopg2
 import time
 import os
 import sys
-import notificationManager
 
 script_dir = os.path.split(os.path.realpath(__file__))[0]  # get where the script is
 logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
@@ -111,14 +110,14 @@ def Main():
             # check to see how many errors occurred, then send out the appropriate notifications
             logging.info(f"Warnings thrown during cycle: {Warning.counter}")
             LoggingChannelID = botconfig.get("notification", "SendChannelID")
-            if Warning.counter > len(results)/2: # check if most of the subreddits are throwing errors
-                res = notificationManager.sendStatus(f"Too many warnings are being thrown! {Warning.counter}", True, LoggingChannelID)
-                if res:
-                    Warning.Warn("notificationManager returned an error: "+res)
-            else:
-                res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {Warning.counter}", False, LoggingChannelID)
-                if res:
-                    Warning.Warn("notificationManager returned an error: "+res)
+           # if Warning.counter > len(results)/2: # check if most of the subreddits are throwing errors
+                #res = notificationManager.sendStatus(f"Too many warnings are being thrown! {Warning.counter}", True, LoggingChannelID)
+              #  if res:
+               #     Warning.Warn("notificationManager returned an error: "+res)
+        #    else:
+               # res = notificationManager.sendStatus(f"Current Cycle: {cycleCounter} \nWarnings thrown during cycle: {Warning.counter}", False, LoggingChannelID)
+               # if res:
+               #     Warning.Warn("notificationManager returned an error: "+res)
 
             logging.info("Done with tweets, sleeping for 5 mins")
             time.sleep(300)
@@ -131,25 +130,17 @@ def Main():
 
 def getTweets(subreddit, config, subredditdata):
     try:
-        print("here0"+subreddit.display_name)
         global isNew
         isNew = False # informs late code that tweets are either new or old
         if 'mode' in config:
-            print("here1")
             mode = config.get('mode') # get current mode
         else:
-            print("here3")
             sendWarning(subreddit, "Config Error: Missing mode type (list/user)")
             return
-        print("here4")
         count = config.get('count', 7) # get number of tweets to display
-        print("here4.5")
         if count > 15: # enforce limit
             count = 15
-            print("here6")
-        print("here5")
         if mode == 'user': # get tweets from a single user
-            print("here7")
             user = config.get('screen_name')
             LatestTweet = tApi.user_timeline(screen_name=user, count=1, tweet_mode='extended', include_entities=True)  # get first tweets id number
             Tweets = checkTweets(LatestTweet, subredditdata) # check LatestTweet is latest, if it is it just returns stored tweets, otherwise we need to get new tweets here

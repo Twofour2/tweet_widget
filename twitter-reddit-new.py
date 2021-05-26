@@ -25,7 +25,6 @@ def Main():
     botconfig.read(script_dir + "/botconfig.ini")
 
     global nextImageUploadDate
-    nextImageUploadDate = datetime.utcnow().timestamp()
     uploadImages = False
     for arg in sys.argv:
         if arg in ("-t", "-test"):
@@ -69,12 +68,12 @@ def Main():
         for twSub in allSubreddits:
             try:
                 twSub.loadConfig()
-                if datetime.utcnow().timestamp() > nextImageUploadDate: # specify when
+                if datetime.utcnow().timestamp() > twSub.nextImageUploadTimestamp or twSub.configChanged:
                     logging.info(f"Uploading images to subreddit {twSub.Name}")
                     twSub.uploadImages()
                     twSub.bugFixImageUpload = True
-                    nextImageUploadDate = (datetime.utcnow() + timedelta(days=1)).timestamp()
-                    logging.info(f"Done uploading images to all subreddits, next upload is scheduled for: {datetime.fromtimestamp(nextImageUploadDate)}")
+                    twSub.nextImageUploadDate = (datetime.utcnow() + timedelta(days=1)).timestamp()
+                    logging.info(f"Done uploading images to {twSub.Name}, next upload is scheduled for: {datetime.fromtimestamp(twSub.nextImageUploadTimestamp)}")
                 twSub.updateWidget()
 
             except timeout_decorator.TimeoutError as e:

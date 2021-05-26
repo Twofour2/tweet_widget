@@ -61,6 +61,10 @@ class twSubreddit:
             self.twitterID = subredditData[8]
             self.feedTitle = subredditData[9]
 
+            # these two vars are used in twitter-reddit.py for image upload related stuff
+            self.configChanged = False
+            self.nextImageUploadTimestamp = datetime.utcnow().timestamp()
+
             # set default values
             if self.nextUpdate is None:
                 self.nextUpdate = 0
@@ -121,10 +125,13 @@ class twSubreddit:
         try:
             wikiPage = self.subreddit.wiki["twittercfg"]
             if self.wikiRevisionTimestamp == wikiPage.revision_date:
+                self.configChanged = False
                 logging.info("Wiki has not been updated, using existing config")
                 return  # wiki timestamps match, so it has not been updated since we last checked
             else:
                 try:
+                    self.configChanged = True # set a marker to inform other code that this config has been updated
+
                     config = yaml.load(wikiPage.content_md, Loader=yaml.FullLoader)
                     if self.checkConfig(config):
                         # now actually load the data into this subreddit class
@@ -170,8 +177,7 @@ class twSubreddit:
                 self.subreddit.wiki.create(name='twittercfg',content='---  \nenabled: false  \nuser: Twitter  \n#list: (put list id here)')
                 logging.info("Created wiki page on subreddit %s" % self.Name)
             except prawcore.exceptions.NotFound:  # occurs when lacking permissions to create wiki page
-                self.logFailure(
-                    f"Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: {self.Name}")
+                self.logFailure(f"Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: {self.Name}")
             except Exception as e:
                 self.logFailure(f"{e.__class__.__name__}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}",exception=e)
         except prawcore.exceptions.ServerError as e:

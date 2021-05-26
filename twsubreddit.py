@@ -174,6 +174,10 @@ class twSubreddit:
                     f"Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: {self.Name}")
             except Exception as e:
                 self.logFailure(f"{e.__class__.__name__}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}",exception=e)
+        except prawcore.exceptions.ServerError as e:
+            logging.error(f"{e.__class__.__name__}: HTTP error while trying to reading config from the wiki page.\nException:\n{e}")
+        except Exception as e:
+            logging.error(f"{e.__class__.__name__}: (Error loading config) {e}")
 
     def checkConfig(self, config):  # False = Failed checks, True = Pass, continue code
         if "list" not in config and "screen_name" not in config:  # if both are missing
@@ -287,11 +291,23 @@ class twSubreddit:
                 self.uploadMarkdown(markdown)
         except KeyError as e:
             self.sendWarning(f"KeyError, check your profiles in the config! User: {e}")
+        except TypeError as e:
+            if tweet_text is None:
+                self.logFailure(f"{self.Name}: Tweet formatting failed, tweet text is none: {e}", exception=e)
+            else:
+                self.logFailure(f"An error occurred while making the markup on subreddit {self.Name}: {e}", exception=e)
         except Exception as e:
             self.logFailure(f"An error occurred while making the markup on subreddit {self.Name}: {e}", exception=e)
 
     def uploadImages(self):
         imageDataList = [] # the post upload to reddit data goes into this
+
+        if self.widgetMembers is None: # not sure how this happens, but it does
+            if self.isListMode:
+                self.widgetMembers = self.tApi.list_members(list_id=self.twitterID)
+            else:
+                self.widgetMembers.append(self.tApi.get_user(screen_name=self.twitterID))
+
         for image_info in ImageUploader.getProfileImages(self): # store and get the info about every profile image for this subreddits widget. Then we upload them all to reddit.
             image_url = self.subreddit.widgets.mod.upload_image(image_info.get("location"))
             imageDataList.append({"url": image_url, "width": image_info.get("width"), "height": image_info.get("height"), "name": image_info.get("name")})
@@ -354,16 +370,20 @@ class twSubreddit:
 class ImageUploader:
     @staticmethod
     def getProfileImages(caller):
-        allImageData = []
-        for x in range(0, len(caller.widgetMembers)):
-            user = caller.widgetMembers[x]
-            if user.profile_image_url_https:
-                profileUrl = user.profile_image_url_https.replace("_normal", "") # _normal is removed in order to get the higher resolution version
-            else:
-                caller.logFailure(f"{caller.Name} Could not find profile image url. Skipping")
-                continue  # skip this one
-            allImageData.append(ImageUploader.storeImage(caller, profileUrl, x+1))  # save the image to disk, then return here with the image data
-        return allImageData
+        try:
+            allImageData = []
+            for x in range(0, len(caller.widgetMembers)):
+                user = caller.widgetMembers[x]
+                if user.profile_image_url_https:
+                    profileUrl = user.profile_image_url_https.replace("_normal", "") # _normal is removed in order to get the higher resolution version
+                else:
+                    caller.logFailure(f"{caller.Name} Could not find profile image url. Skipping")
+                    continue  # skip this one
+                allImageData.append(ImageUploader.storeImage(caller, profileUrl, x+1))  # save the image to disk, then return here with the image data
+            return allImageData
+        except AttributeError as e:
+            caller.logFailure(f"{caller.Name}: ({e.__class__.__name__}) Failed to get widget members in getProfileImages() \n{e}", exception=e)
+
 
     @staticmethod
     # stores the image from the profileUrl to the disk. Then returns image info.

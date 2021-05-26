@@ -65,11 +65,12 @@ def Main():
             allSubreddits.append(subreddit)
     logging.info("Done loading subreddits")
     while True:
+
         for twSub in allSubreddits:
-            logging.info(f"### {twSub.Name} (uploadImages: {uploadImages}) ###")
-            twSub.loadConfig()
             try:
+                twSub.loadConfig()
                 if datetime.utcnow().timestamp() > nextImageUploadDate: # specify when
+                    logging.info(f"Uploading images to subreddit {twSub.Name}")
                     twSub.uploadImages()
                     twSub.bugFixImageUpload = True
                     nextImageUploadDate = (datetime.utcnow() + timedelta(days=1)).timestamp()
@@ -79,7 +80,7 @@ def Main():
             except timeout_decorator.TimeoutError as e:
                 twSub.logFailure(f"{twSub.Name}: Timed out ({e})", exception=e)
             except Exception as e:
-                twSub.logFailure(f"{twSub.Name}: Other exception: {e}", exception=e)
+                twSub.logFailure(f"{twSub.Name}: Other outer exception: {e}", exception=e)
         else:
             logging.info("Done with widgets, waiting 5 mins")
             time.sleep(300)

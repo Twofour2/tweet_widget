@@ -31,10 +31,6 @@ def Main():
         if arg in ("-t", "-test"):
             testMode = True
             continue
-        if arg in ("-u", "-uploadImages"):
-            logging.info("Script was started in upload images mode")
-            uploadImages = True
-            continue
         else:
             logging.info("--------Starting Twitter Bot--------")
 

@@ -363,7 +363,7 @@ class twSubreddit:
             widgets = self.subreddit.widgets.sidebar  # get all widgets
             for item in widgets:
                 if item.shortName.lower() == 'twitterfeed':  # find the feed widget
-                    if str(item.css).endswith("/* upload image bugfix */") or self.bugFixImageUpload: # redundant, just done so we are sure this ACTUALLY happens
+                    if str(item.css).endswith("/* upload image bugfix */") or self.bugFixImageUpload: # redundant, just done so we are sure this actually happens
                         item.mod.update(shortname="twitterfeed", text=markdown, css=item.css.replace("/* upload image bugfix */", ""))
                         self.bugFixImageUpload = False # we no longer need to fix the images anymore
                         logging.info(f"{self.Name}: Fixed css so images show properly")
@@ -417,6 +417,14 @@ class ImageUploader:
                 return imageInfo
         except urllib.error.HTTPError as e:
             caller.logFailure(f"{caller.Name}: 404 on profile url {profileurl}", exception=e)
+            try: # try to use the stored image instead.
+                fileLocation = rf"{script_dir}/ProfileImages/{caller.Name}/profile{profileCounter}{extension}"
+                with Image.open(fileLocation) as profileImage:
+                    width, height = profileImage.size
+                    imageInfo = {"width": width, "height": height, "location": fileLocation, "name": f"profile{profileCounter}"}
+                    return imageInfo
+            except Exception as e:
+                caller.logFailure(f"{caller.Name}: Failed to use backup saved image \"profile{profileCounter}\"", exception=e)
         except Exception as e:
             caller.logFailure(f"{caller.Name}: Failed to store profile image \"profile{profileCounter}\"", exception=e)
 

@@ -49,19 +49,33 @@ def Main():
     tApi = tweepy.API(tAuth)
     twSubreddit.tApi = tApi
 
+    allSubreddits = []
+    storedSubnames = []
+
     while True:
         if testMode:
             logging.info("Test mode")
             cur.execute("SELECT * FROM subreddits_testing")
         results = cur.fetchall()
-        allSubreddits = []
+
         reddit = redditlogin(botconfig)
         for subredditData in results:
             # (Subname, enabled, latest, last_gather, last_update
             if subredditData[1]: # dont bother if the subreddit is not enabled
-                subreddit = twSubreddit(subredditData, reddit) # generate new subreddit object
-                logging.info(f"Adding {subreddit}")
-                allSubreddits.append(subreddit)
+                if not subredditData[0] in storedSubnames: # if we have already added this subreddit, skip it
+                    subreddit = twSubreddit(subredditData, reddit)  # generate new subreddit object
+                    logging.info(f"Adding {subreddit}")
+                    allSubreddits.append(subreddit)
+                    storedSubnames.append(subredditData[0])
+            else: # subreddit is disabled
+                if subredditData[0] in storedSubnames: # if we still have a copy of it, we need to removing it to stop processing it
+                    logging.info(f"Subreddit {subredditData} is now disabled. Removing")
+                    storedSubnames.remove(subredditData[0])
+                    for i in allSubreddits:
+                        if i.Name == subredditData[0]:
+                            allSubreddits.remove(i)
+                            break
+
         logging.info("Done loading subreddits")
         for twSub in allSubreddits:
             try:
@@ -71,7 +85,7 @@ def Main():
                     twSub.uploadImages()
                     twSub.bugFixImageUpload = True
                     twSub.nextImageUploadTimestamp = (datetime.utcnow() + timedelta(days=1)).timestamp()
-                    logging.info(f"Done uploading images to {twSub.Name}, next upload is scheduled for: {datetime.fromtimestamp(twSub.nextImageUploadTimestamp)}")
+                    logging.info(f"Done uploading images to {twSub.Name}, next upload is scheduled for: {datetime.utcfromtimestamp(twSub.nextImageUploadTimestamp)}")
                 twSub.updateWidget()
 
             except timeout_decorator.TimeoutError as e:

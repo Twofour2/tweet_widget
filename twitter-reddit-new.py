@@ -49,22 +49,20 @@ def Main():
     tApi = tweepy.API(tAuth)
     twSubreddit.tApi = tApi
 
-    if testMode:
-        logging.info("Test mode")
-        cur.execute("SELECT * FROM subreddits_testing")
-    results = cur.fetchall()
-    allSubreddits = []
-    reddit = redditlogin(botconfig)
-
-    for subredditData in results:
-        # (Subname, enabled, latest, last_gather, last_update
-        if subredditData[1]: # dont bother if the subreddit is not enabled
-            subreddit = twSubreddit(subredditData, reddit) # generate new subreddit object
-            logging.info(f"Adding {subreddit}")
-            allSubreddits.append(subreddit)
-    logging.info("Done loading subreddits")
     while True:
-
+        if testMode:
+            logging.info("Test mode")
+            cur.execute("SELECT * FROM subreddits_testing")
+        results = cur.fetchall()
+        allSubreddits = []
+        reddit = redditlogin(botconfig)
+        for subredditData in results:
+            # (Subname, enabled, latest, last_gather, last_update
+            if subredditData[1]: # dont bother if the subreddit is not enabled
+                subreddit = twSubreddit(subredditData, reddit) # generate new subreddit object
+                logging.info(f"Adding {subreddit}")
+                allSubreddits.append(subreddit)
+        logging.info("Done loading subreddits")
         for twSub in allSubreddits:
             try:
                 twSub.loadConfig()

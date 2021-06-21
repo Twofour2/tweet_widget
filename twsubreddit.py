@@ -363,7 +363,7 @@ class twSubreddit:
             widgets = self.subreddit.widgets.sidebar  # get all widgets
             for item in widgets:
                 if item.shortName.lower() == 'twitterfeed':  # find the feed widget
-                    if self.bugFixImageUpload:
+                    if str(item.css).endswith("/* upload image bugfix */") or self.bugFixImageUpload: # redundant, just done so we are sure this ACTUALLY happens
                         item.mod.update(shortname="twitterfeed", text=markdown, css=item.css.replace("/* upload image bugfix */", ""))
                         self.bugFixImageUpload = False # we no longer need to fix the images anymore
                         logging.info(f"{self.Name}: Fixed css so images show properly")

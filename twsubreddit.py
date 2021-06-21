@@ -341,9 +341,9 @@ class twSubreddit:
 
             # insert timestamp
             markdown += "\n\n~~"  # open code area
-            markdown += f"Widget last updated: {datetime.utcnow().strftime(f'%#d %b at %#I:%M %p')} (UTC)  \n"
+            markdown += f"Widget last updated: {datetime.utcnow().strftime(f'%-d %b at %-I:%M %p')} (UTC)  \n"
             if self.last_gather is not None:
-                markdown += f"Last retrieved tweets: {datetime.fromtimestamp(self.last_gather).strftime(f'%#d %b at %#I:%M %p')}  (UTC)  \n"
+                markdown += f"Last retrieved tweets: {datetime.fromtimestamp(self.last_gather).strftime(f'%-d %b at %-I:%M %p')}  (UTC)  \n"
             else:
                 markdown += f"Last retrieved tweets: (Missing)  (UTC)  \n"
             markdown += "[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
@@ -492,7 +492,7 @@ class Formatting:
         elif 3600 < seconds < 86400:  # older than 1 hour, younger than 1 day, show hours
             timeStr = str(int(seconds // 3600)) + "h"
         else:  # older than 1 day
-            timeStr = tweet_created_at.strftime("%b %#d, %Y")  # timestamp
+            timeStr = tweet_created_at.strftime("%b %-d, %Y")  # timestamp
         return timeStr.strip()  # removes unwanted spaces
 
     # escapes markdown characters in a tweet to stop reddit from formatting on them

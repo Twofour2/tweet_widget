@@ -84,10 +84,7 @@ class twSubreddit:
 
             # get all of the users related to this widget. We use this to match the profile pictures with their tweets.
             self.widgetMembers = []
-            if self.isListMode:
-                self.widgetMembers = self.tApi.list_members(list_id=self.twitterID)
-            else:
-                self.widgetMembers.append(self.tApi.get_user(screen_name=self.twitterID))
+            self.loadWidgetMembers() # placed in function so we can update the values of this later
 
         except tweepy.error.TweepError as e:
             self.sendWarning(f"Could not find user {self.twitterID}")
@@ -223,6 +220,14 @@ class twSubreddit:
         except Exception as e:
             self.logFailure(f"Failed to update latest timestamp {e}", exception=e)
 
+    def loadWidgetMembers(self):
+        # get all of the users related to this widget. We use this to match the profile pictures with their tweets.
+        self.widgetMembers = []
+        if self.isListMode:
+            self.widgetMembers = self.tApi.list_members(list_id=self.twitterID)
+        else:
+            self.widgetMembers.append(self.tApi.get_user(screen_name=self.twitterID))
+
     # this function actually gets the tweets for this subreddit
     def retrieveTweets(self, count=7):
         try:
@@ -357,7 +362,7 @@ class twSubreddit:
             # deletes the old subreddit objects
             # we must do this or else praw will use a cached version of "item" (the one from the uploadImages function), this causes issues as reddit will see it as being apart of the same upload
             # which in turn causes the images to not update due to a long standing bug with images.
-            if self.bugFixImageUpload: # there is no need to do this if we aren't actually uploading new images
+            if self.bugFixImageUpload:
                 del self.subreddit
                 self.subreddit = self.reddit.subreddit(self.Name)
             widgets = self.subreddit.widgets.sidebar  # get all widgets
@@ -376,11 +381,13 @@ class twSubreddit:
         except Exception as e:
             self.logFailure(f"{self.Name}: An error occurred while dealing with widgets on this subreddit: {self.Name}", exception=e)
 
+
 class ImageUploader:
     @staticmethod
     def getProfileImages(caller):
         try:
             allImageData = []
+            caller.loadWidgetMembers() # reloads the widget members. This re-retrieves the user data in case it has been updated (i.e. new profile picture)
 
             for x in range(0, len(caller.widgetMembers)):
                 user = caller.widgetMembers[x]

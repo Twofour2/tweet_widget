@@ -197,6 +197,15 @@ class twSubreddit:
         try:
             if self.wikiRevisionTimestamp is None:
                 self.wikiRevisionTimestamp = -1
+            if self.showTweetCount is None:
+                self.showTweetCount = 7
+            if self.isListMode is None:
+                self.isListMode = False
+            if self.twitterID is None:
+                self.twitterID = "twitter"
+            if self.feedTitle is None:
+                self.feedTitle = "Tweets"
+
             self.cur.execute(f"UPDATE subreddits_testing SET "
                              f"wiki_revision_timestamp={self.wikiRevisionTimestamp}, "
                              f"showtweetcount={self.showTweetCount}, "

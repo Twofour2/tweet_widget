@@ -61,7 +61,7 @@ class twSubreddit:
             self.twitterID = subredditData[8]
             self.feedTitle = subredditData[9]
 
-            # these two vars are used in twitter-reddit.py for image upload related stuff
+            # these two vars are used in twitter-reddit-old.py for image upload related stuff
             self.configChanged = False
             self.nextImageUploadTimestamp = datetime.utcnow().timestamp()
 
@@ -79,6 +79,9 @@ class twSubreddit:
             self.subreddit = self.reddit.subreddit(self.Name)
             try:
                 self.loadConfig()
+            except prawcore.ResponseException as e:
+                self.logFailure(f"{self.Name}: Response exception, reddit is probably down.", exception=e)
+
             except timeout_decorator.TimeoutError as e:
                 self.logFailure(f"{self.Name}: loadConfig() timed out {e}", exception=e)
 
@@ -111,11 +114,12 @@ class twSubreddit:
             logging.error(f"An error occurred while sending a warning: {e}")
 
     def logFailure(self, message, exception=None):
+        self.isFailed = True
+        logging.warning(message)
         if exception:
             print(traceback.format_exc())
             logging.error(traceback.format_exc())
-        self.isFailed = True
-        logging.warning(message)
+
 
     #@timeout_decorator.timeout(40)
     def loadConfig(self):

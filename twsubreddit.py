@@ -169,8 +169,6 @@ class twSubreddit:
 
                         # update the timestamp in the database
                         self.wikiRevisionTimestamp = wikiPage.revision_date
-                        if self.wikiRevisionTimestamp is None:
-                            self.wikiRevisionTimestamp = -1
                         self.updateDB()
                         return  # done here
                 except Exception as e:
@@ -197,6 +195,8 @@ class twSubreddit:
     # store class variables in the database
     def updateDB(self):
         try:
+            if self.wikiRevisionTimestamp is None:
+                self.wikiRevisionTimestamp = -1
             self.cur.execute(f"UPDATE subreddits_testing SET "
                              f"wiki_revision_timestamp={self.wikiRevisionTimestamp}, "
                              f"showtweetcount={self.showTweetCount}, "

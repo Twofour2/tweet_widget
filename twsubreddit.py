@@ -1,5 +1,3 @@
-import pprint
-
 import praw
 import prawcore
 import os
@@ -368,11 +366,10 @@ class twSubreddit:
                     for x in range(1, len(imageDataList)+1): # now generate the css headers that link them to our profile pictures we uploaded earlier
                         cssImagesText += "\nh"+str(x+1)+"::before{background-image: url(%%"+imageDataList[x-1].get("name")+"%%);} /* "+str(x)+" */"
                     logging.info(f"{self.Name}: Removed existing images from the widget.")
-            # sometimes praw keeps an old data in the above code and tries to use it. To fix this we just find the widget again.
-            for item in self.subreddit.widgets.sidebar:
-                if item.shortName.lower() == 'twitterfeed':  # find the feed widget
-                    item.mod.update(imageData=(otherImageData+imageDataList)[:5], css=item.css+cssImagesText+"/* upload image bugfix */") # upload the images along with the bugfix text that gets removed later
+
+                    item.mod.update(imageData=(otherImageData + imageDataList)[:5], css=item.css + cssImagesText + "/* upload image bugfix */")  # upload the images along with the bugfix text that gets removed later
                     logging.info(f"{self.Name}: Uploaded new images to widget")
+
         except Exception as e:
             self.logFailure(f"An error occurred while uploading images: {e}", e)
 
@@ -409,17 +406,21 @@ class twSubreddit:
             for item in widgets:
                 if item.shortName.lower() == 'twitterfeed':  # find the feed widget
                     if str(item.css).endswith("/* upload image bugfix */") or self.bugFixImageUpload: # redundant, just done so we are sure this actually happens
-                        item.mod.update(shortname="twitterfeed", text=markdown, css=item.css.replace("/* upload image bugfix */", ""))
-                        self.bugFixImageUpload = False # we no longer need to fix the images anymore
-                        logging.info(f"{self.Name}: Fixed css so images show properly")
+                        for image in item.imageData:
+                            if image.url == 'https://www.redditstatic.com/image-processing.png':
+                                logging.info(f"Images are still processing. Waiting until next cycle.")
+                                self.bugFixImageUpload = True
+                                break
+                        else:
+                            item.mod.update(shortname="twitterfeed", text=markdown, css=item.css.replace("/* upload image bugfix */", ""))
+                            self.bugFixImageUpload = False # we no longer need to fix the images anymore
+                            logging.info(f"{self.Name}: Fixed css so images show properly")
                     else:
                         item.mod.update(shortname="twitterfeed", text=markdown)
                         logging.info(f"{self.Name}: Uploaded markdown")
                     self.last_update = datetime.utcnow().timestamp()
                     self.updateTimestampDB()
                     return  # we're done here
-        except prawcore.BadRequest as e:
-            self.logFailure(f"{self.Name}: Bad url bug", exception=e)
         except Exception as e:
             self.logFailure(f"{self.Name}: An error occurred while dealing with widgets on this subreddit: {self.Name}", exception=e)
 

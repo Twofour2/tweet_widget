@@ -58,6 +58,7 @@ def Main():
 
     while True:
         if testMode:
+            print("Test mode")
             logging.info("Test mode")
             cur.execute("SELECT * FROM subreddits_testing")
         else:

@@ -91,7 +91,7 @@ def Main():
                     logging.info(f"Uploading images to subreddit {twSub.Name}")
                     twSub.uploadImages()
                     twSub.bugFixImageUpload = True
-                    twSub.nextImageUploadTimestamp = (datetime.utcnow() + timedelta(days=1)).timestamp()
+                    twSub.nextImageUploadTimestamp = (datetime.utcnow() + timedelta(days=3)).timestamp()
                     logging.info(f"Done uploading images to {twSub.Name}, next upload is scheduled for: {datetime.utcfromtimestamp(twSub.nextImageUploadTimestamp)}")
                 twSub.updateWidget()
 

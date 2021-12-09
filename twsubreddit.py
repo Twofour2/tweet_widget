@@ -450,7 +450,7 @@ class ImageUploader:
     def storeImage(caller, profileurl, profileCounter=1):
         try:
             with urllib.request.urlopen(profileurl) as image:  # open the url, to find an image
-                if profileurl.endswith(".jpg"):
+                if profileurl.endswith(".jpg") or profileurl.endswith(".jpeg"):
                     extension = ".jpg"
                 elif profileurl.endswith(".png"):
                     extension = ".png"

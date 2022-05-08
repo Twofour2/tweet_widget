@@ -213,9 +213,9 @@ class Subreddit(models.Model):
             
             # insert timestamp
             markdown += "\n\n~~"  # open code area
-            markdown += f"Widget last updated: {datetime.utcnow().strftime(f'%#d %b at %#I:%M %p')} (UTC)  \n"
+            markdown += f"Widget last updated: {datetime.utcnow().strftime(f'%-d %b at %-I:%M %p')} (UTC)  \n"
             if self.lastUpdate is not None:
-                markdown += f"Last retrieved tweets: {datetime.fromtimestamp(self.lastUpdate).strftime(f'%#d %b at %#I:%M %p')}  (UTC)  \n"
+                markdown += f"Last retrieved tweets: {datetime.fromtimestamp(self.lastUpdate).strftime(f'%-d %b at %-I:%M %p')}  (UTC)  \n"
             else:
                 markdown += f"Last retrieved tweets: (Missing)  (UTC)  \n"
             markdown += "[/r/Tweet_widget](https://www.reddit.com/r/tweet_widget)"
@@ -350,7 +350,7 @@ class Subreddit(models.Model):
         elif 3600 < seconds < 86400:  # older than 1 hour, younger than 1 day, show hours
             timeStr = str(int(seconds // 3600)) + "h"
         else:  # older than 1 day
-            timeStr = tweet_created_at.strftime("%b %#d, %Y")  # timestamp TODO: Fix this
+            timeStr = tweet_created_at.strftime("%b %-d, %Y")  # timestamp TODO: Fix this
         return timeStr.strip()  # removes unwanted spaces
     
     def escapeChars(self, fulltext):

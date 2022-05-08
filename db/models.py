@@ -18,7 +18,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 script_dir = os.path.split(os.path.realpath(__file__))[0]  # get where the script is
-logging.basicConfig(filename=script_dir + '/../logs/twitterBotSubreddits.log', level=logging.INFO,
+logging.basicConfig(filename=script_dir + '/../logs/twitterBot.log', level=logging.INFO,
                     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -131,8 +131,7 @@ class Subreddit(models.Model):
                                                include_entities=True, include_rts=self.showReweets)
             else:  # user mode
                 logging.info(f"{self.subname}: Using user mode")
-                return self.tApi.user_timeline(screen_name=self.twitterId, count=count, tweet_mode='extended',
-                                               include_entities=True, include_rts=self.showReweets, exclude_replies= (not self.showReplies))
+                return self.tApi.user_timeline(screen_name=self.twitterId, count=count, tweet_mode='extended', include_rts=self.showReweets, exclude_replies= (not self.showReplies))
 
         except Exception as e:
             self.logFailure(f"{self.subname}: Unable to gather tweets ({e})", exception=e)
@@ -350,7 +349,7 @@ class Subreddit(models.Model):
         elif 3600 < seconds < 86400:  # older than 1 hour, younger than 1 day, show hours
             timeStr = str(int(seconds // 3600)) + "h"
         else:  # older than 1 day
-            timeStr = tweet_created_at.strftime("%b %-d, %Y")  # timestamp TODO: Fix this
+            timeStr = tweet_created_at.strftime("%b %-d, %Y")  # timestamp
         return timeStr.strip()  # removes unwanted spaces
     
     def escapeChars(self, fulltext):

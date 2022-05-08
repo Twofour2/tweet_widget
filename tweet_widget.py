@@ -29,10 +29,11 @@ import time
 import sys
 
 script_dir = os.path.split(os.path.realpath(__file__))[0]  # get where the script is
-logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S')
+# logging.basicConfig(filename=script_dir+'/logs/twitterBot.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+#     datefmt='%Y-%m-%d %H:%M:%S')
 
 def main():
+    logging.info("-----Starting Twitter Bot------")
     botconfig = configparser.ConfigParser()
     botconfig.read(script_dir + "/botconfig.ini")
 
@@ -71,7 +72,7 @@ def main():
             except Exception as e:
                 logging.error(f"{sub.subname}: Unhandled error: {e}")
         logging.info("Done with widgets, waiting 5 mins")
-        #time.sleep(15)
+        
         time.sleep(300)
 
 

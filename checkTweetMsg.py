@@ -1,3 +1,20 @@
+############################################################################
+## Django ORM Standalone
+############################################################################
+
+# Turn off bytecode generation
+import sys
+sys.dont_write_bytecode = True
+
+# Django specific settings
+import os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
+import django
+django.setup()
+
+# Import your models for use in your script
+from db.models import *
+
 import praw
 import praw.models.util
 import prawcore
@@ -11,8 +28,8 @@ script_dir = os.path.split(os.path.realpath(__file__))[0] # get where the script
 logging.basicConfig(filename=script_dir+'/logs/twitterBotMsg.log',level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 
-# TWITTER WIDGET V3
-# by /u/chaos_a
+# TWITTER WIDGET V5
+# by chaos_a
 # Checks messages for the bot account
 
 def Main():
@@ -20,8 +37,6 @@ def Main():
         try:
             botconfig = configparser.ConfigParser()
             botconfig.read(script_dir + "/botconfig.ini")
-            global conn2
-            conn2 = dbConnect(botconfig)
             r = redditlogin(botconfig)
             checkMail(r)
         except Exception as e:
@@ -66,70 +81,30 @@ def checkMail(r):
 def acceptModInvite(message):
     try:
         logging.info("Accepting mod invite for subreddit %s" % message.subreddit.display_name)
-        global conn2
-        cur = conn2.cursor()
         message.mark_read()
         message.subreddit.mod.accept_invite()
-
-        cur.execute(
-            "SELECT * FROM subreddits WHERE subname=%s",
-            (str(message.subreddit).lower(),),
-        )
-        results = cur.fetchall()
-        if results:
-            cur.execute(
-                "UPDATE subreddits SET enabled=True WHERE subname=%s",
-                (str(message.subreddit).lower(),),
-            )
-            logging.info("Re-enabling subreddit %s" % message.subreddit.display_name)
-        else:
-            cur.execute(
-                "INSERT INTO subreddits (subname) VALUES(%s)",
-                (str(message.subreddit).lower(),),
-            )
-            logging.info("Successfully added subreddit %s to database" % message.subreddit.display_name)
+        Subreddit.objects.create(subname=str(message.subreddit).lower(), enabled=True)
+        print('created object')
+        logging.info("Successfully added subreddit %s to database" % message.subreddit.display_name)
         logging.warning("Accepted invite for /r/%s" % message.subreddit.display_name)
     except Exception as e:
         logging.warning("Error: %s" % e)
 
 def removeModStatus(message):
     try:
-        global conn2
-        cur = conn2.cursor()
         message.mark_read()
-        cur.execute(
-            "UPDATE subreddits SET enabled=False WHERE subname=%s",
-            (str(message.subreddit).lower(),),
-        )
+        sub = Subreddit.objects.filter(subname=str(message.subreddit).lower())
+        sub.delete()
         logging.info("Set enabled to false for subreddit %s"%message.subreddit.display_name)
     except Exception as e:
         logging.warning("Error: %s"%e)
 
 def createConfig(subreddit): # create the config file
     try:
-        subreddit.wiki.create(name='twittercfg', content='#Twitter feed bot config\n---  \nenabled: True  \nmode: user')
+        subreddit.wiki.create(name='twittercfg', content='---  \nenabled: false  \nuser: Twitter  \n#list: (put list id here)')
     except Exception as e: # already exists
         logging.warning("Error: Config already exists, recieved error %s"%e)
         return
-
-def dbConnect(botconfig):
-    # DB Connection
-    dbName = botconfig.get("database", "dbName")
-    dbPasswrd = botconfig.get("database", "dbPassword")
-    dbUser = botconfig.get("database", "dbUsername")
-    dbHost = botconfig.get("database", "dbHost")
-    try:
-        global conn2
-        conn2 = psycopg2.connect(
-            "dbname='{0}' user='{1}' host='{2}' password='{3}'".format(
-                dbName, dbUser, dbHost, dbPasswrd
-            )
-        )
-        conn2.autocommit = True
-        return conn2
-    except Exception as e:
-        logging.warning("Could not connect to database: %s" % e)
-        time.sleep(120)
 
 def redditlogin(botconfig):
     # reddit login

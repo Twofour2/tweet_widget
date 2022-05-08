@@ -133,3 +133,6 @@ dmypy.json
 /Data/
 
 .idea
+
+/ProfileImages
+/logs

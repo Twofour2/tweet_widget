@@ -45,11 +45,11 @@ def main():
     Subreddit.tApi = tApi
     isFirstLoad = True
 
+
     while True:
         for sub in Subreddit.objects.all():
             try:
                 sub.loadConfig(isFirstLoad)
-                print(isFirstLoad)
                 
                 if datetime.utcnow().timestamp() > sub.nextImageUploadTimestamp or sub.configChanged:
                     logging.info(f"Uploading images to subreddit {sub.subname}")
@@ -67,9 +67,16 @@ def main():
                         Subreddit.objects.filter(subname=sub.subname).delete()
                     else:
                         logging.error(f"{sub.subname}: 403 Forbidden: {ef}")
+                except prawcore.exceptions.NotFound:
+                    # this occurs when the subreddit is banned. however I don't trust reddit to not throw a 404 randomly. so these need to be removed manually
+                    sub.enabled = False
+                    sub.save()
+                    logging.warning(f"{sub.subname}: Subreddit cannot be accessed. Please remove this subreddit manually.")
                 except prawcore.exceptions.Forbidden as e:
                     logging.warning(f"{sub.subname}: Deleting private subreddit record. (Recieved 403 when trying to access mod list)")
                     Subreddit.objects.filter(subname=sub.subname).delete()   
+            except prawcore.exceptions.PrawcoreException as e:
+                logging.error(f"{sub.subname}: Praw error: {e}")
             except Exception as e:
                 logging.error(f"{sub.subname}: Unhandled error: {e}")
 

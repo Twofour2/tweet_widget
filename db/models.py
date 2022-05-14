@@ -54,7 +54,6 @@ class Subreddit(models.Model):
     def loadConfig(self, isFirstLoad):
         self.subreddit = self.r.subreddit(self.subname)
         try:
-            print(isFirstLoad)
             wikiPage = self.subreddit.wiki["twittercfg"]
             if self.wikiTimestamp == wikiPage.revision_date and not isFirstLoad:
                 self.configChanged = False
@@ -194,8 +193,6 @@ class Subreddit(models.Model):
             if len(tweet.user.screen_name + tweet.user.name) > 36:
                 screen_name = tweet.user.screen_name[0:33]  # username is too long, shorten it
             
-            print(tweet.user.screen_name.lower())
-            print(self.widgetMembers)
             userhashes = "#" * (self.widgetMembers.index(tweet.user.screen_name.lower()) + 2)
             hotlink = f"https://www.twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
             tweet_text = f"\n\n---\n{userhashes}**[{tweet.user.name} *@{screen_name}*](https://www.twitter.com/{tweet.user.screen_name.lower()})**   \n[*{self.formatTime(tweet.created_at)}*]({hotlink}) \n>{tweet_text}"

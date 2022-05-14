@@ -67,8 +67,14 @@ class Subreddit(models.Model):
                         self.sendWarning("Missing list/user parameters in config file")
                         return
 
-                        
-                    if config.get("list", False):
+                    if config.get("owner", False): # runs first since the keyword list is used by it
+                        # legacy list mode, only a few older subreddits use this as it does not work with new twitter lists
+                        # to work with this, all we have to do is grab the list ID from twitter using the list name and owner name
+                        logging.info(f"{self.subname}: Loaded legacy mode config")
+                        self.isListMode = True
+                        tList = self.tApi.get_list(owner_screen_name=config.get("owner"), slug=config.get("list").lower())
+                        self.twitterId = tList.id_str
+                    elif config.get("list", False):
                         logging.info(f"{self.subname}: Loaded list mode config")
                         self.isListMode = True
                         self.twitterId = config.get("list")
@@ -77,13 +83,6 @@ class Subreddit(models.Model):
                         logging.info(f"{self.subname}: Loaded user mode config")
                         self.isListMode = False
                         self.twitterId = config.get("screen_name")
-                    elif config.get("owner", False):
-                        # legacy list mode, only a few older subreddits use this as it does not work with new twitter lists
-                        # to work with this, all we have to do is grab the list ID from twitter using the list name and owner name
-                        logging.info(f"{self.subname}: Loaded legacy mode config")
-                        self.isListMode = True
-                        tList = self.tApi.get_list(owner_screen_name=config.get("owner"), slug=config.get("list").lower())
-                        self.twitterId = tList.id_str
                     else:
                         self.sendWarning("Missing list ID or screen_name")
                     
@@ -195,7 +194,7 @@ class Subreddit(models.Model):
             if len(tweet.user.screen_name + tweet.user.name) > 36:
                 screen_name = tweet.user.screen_name[0:33]  # username is too long, shorten it
             
-            userhashes = "#" * (self.widgetMembers.index(tweet.user.screen_name) + 2)
+            userhashes = "#" * (self.widgetMembers.index(tweet.user.screen_name.lower()) + 2)
             hotlink = f"https://www.twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
             tweet_text = f"\n\n---\n{userhashes}**[{tweet.user.name} *@{screen_name}*](https://www.twitter.com/{tweet.user.screen_name.lower()})**   \n[*{self.formatTime(tweet.created_at)}*]({hotlink}) \n>{tweet_text}"
             return tweet_text
@@ -400,10 +399,10 @@ class Subreddit(models.Model):
         try:
             if self.isListMode:
                 users = self.tApi.get_list_members(list_id=self.twitterId)
-                self.widgetMembers = list(map(lambda user: user.screen_name, users))
+                self.widgetMembers = list(map(lambda user: user.screen_name.lower(), users))
                 widgetProfiles = list(map(lambda user: user.profile_image_url_https.replace("_normal", "_bigger"), users))
             else:
-                self.widgetMembers = [self.twitterId]
+                self.widgetMembers = [self.twitterId.lower()]
                 user = self.tApi.get_user(screen_name=self.twitterId)
                 widgetProfiles = [user.profile_image_url_https.replace("_normal", "_bigger")]
             if self.widgetProfileUrls != widgetProfiles:

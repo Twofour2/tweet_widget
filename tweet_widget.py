@@ -43,11 +43,13 @@ def main():
     tApi = tweepy.API(tAuth)
     Subreddit.r = r
     Subreddit.tApi = tApi
+    isFirstLoad = True
 
     while True:
         for sub in Subreddit.objects.all():
             try:
-                sub.loadConfig()
+                sub.loadConfig(isFirstLoad)
+                print(isFirstLoad)
                 
                 if datetime.utcnow().timestamp() > sub.nextImageUploadTimestamp or sub.configChanged:
                     logging.info(f"Uploading images to subreddit {sub.subname}")
@@ -67,14 +69,13 @@ def main():
                         logging.error(f"{sub.subname}: 403 Forbidden: {ef}")
                 except prawcore.exceptions.Forbidden as e:
                     logging.warning(f"{sub.subname}: Deleting private subreddit record. (Recieved 403 when trying to access mod list)")
-                    Subreddit.objects.filter(subname=sub.subname).delete()
-                
+                    Subreddit.objects.filter(subname=sub.subname).delete()   
             except Exception as e:
                 logging.error(f"{sub.subname}: Unhandled error: {e}")
-        logging.info("Done with widgets, waiting 5 mins")
-        
-        time.sleep(300)
 
+        isFirstLoad = False
+        logging.info("Done with widgets, waiting 5 mins")
+        time.sleep(300)
 
 def redditlogin(botconfig):
     # reddit login

@@ -51,11 +51,12 @@ class Subreddit(models.Model):
     def __str(self):
         return self.subname
 
-    def loadConfig(self):
+    def loadConfig(self, isFirstLoad):
         self.subreddit = self.r.subreddit(self.subname)
         try:
+            print(isFirstLoad)
             wikiPage = self.subreddit.wiki["twittercfg"]
-            if self.wikiTimestamp == wikiPage.revision_date:
+            if self.wikiTimestamp == wikiPage.revision_date and not isFirstLoad:
                 self.configChanged = False
                 logging.info("Wiki has not been updated, using saved config")
                 return
@@ -113,12 +114,11 @@ class Subreddit(models.Model):
                 logging.info("Created wiki page on subreddit %s" % self.subame)
             except prawcore.exceptions.NotFound:  # occurs when lacking permissions to create wiki page
                 self.logFailure(f"Tried to create wiki page but failed. Bot probably lacks permission. Subreddit: {self.subname}")
-            except Exception as e:
-                self.logFailure(f"{e.__class__.__name__}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}",exception=e)
             except prawcore.exceptions.ServerError as e:
-                logging.error(f"{e.__class__.__name__}: HTTP error while trying to reading config from the wiki page.\nException:\n{e}")
+                logging.error(f"{self.subname}: HTTP error while trying to reading config from the wiki page.\nException:\n{e}")
             except Exception as e:
-                logging.error(f"{e.__class__.__name__}: (Error loading config) {e}")
+                self.logFailure(f"{self.subname}: Something else happened while trying to create the wiki page? This should never occur. Exception: {e}",exception=e)
+            
     
     def getTweets(self, count=7):
         try:
@@ -194,6 +194,8 @@ class Subreddit(models.Model):
             if len(tweet.user.screen_name + tweet.user.name) > 36:
                 screen_name = tweet.user.screen_name[0:33]  # username is too long, shorten it
             
+            print(tweet.user.screen_name.lower())
+            print(self.widgetMembers)
             userhashes = "#" * (self.widgetMembers.index(tweet.user.screen_name.lower()) + 2)
             hotlink = f"https://www.twitter.com/{tweet.user.screen_name}/status/{tweet.id}"
             tweet_text = f"\n\n---\n{userhashes}**[{tweet.user.name} *@{screen_name}*](https://www.twitter.com/{tweet.user.screen_name.lower()})**   \n[*{self.formatTime(tweet.created_at)}*]({hotlink}) \n>{tweet_text}"

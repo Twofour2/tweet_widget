@@ -307,7 +307,7 @@ class Subreddit(models.Model):
                     logging.info(f"Directory does not exist for {self.subname}")
                     os.mkdir(rf"{script_dir}/../ProfileImages/{self.subname}")
                 profileImage = Image.open(image)
-                fileLocation = rf"{script_dir}/../ProfileImages/{self.subname}/profile{profileCounter}{extension}"
+                fileLocation = os.path.join("ProfileImages", self.subname, f"profile{profileCounter}{extension}")
                 profileImage.save(fileLocation, subsampling=0, quality=100, dpi=(73, 73))
                 width, height = profileImage.size
                 imageInfo = {"width": width, "height": height, "location": fileLocation, "name": f"profile{profileCounter}"}
@@ -315,7 +315,7 @@ class Subreddit(models.Model):
         except urllib.error.HTTPError as e:
             self.logFailure(f"{self.subname}: 404 on profile url {profileUrl}", exception=e)
             try: # try to use the stored image instead.
-                fileLocation = rf"{script_dir}/../ProfileImages/{caller.subname}/profile{profileCounter}{extension}"
+                fileLocation = os.path.join("ProfileImages", self.subname, f"profile{profileCounter}{extension}")
                 with Image.open(fileLocation) as profileImage:
                     width, height = profileImage.size
                     imageInfo = {"width": width, "height": height, "location": fileLocation, "name": f"profile{profileCounter}"}
